@@ -8,9 +8,30 @@ export const onboardingStyles = [
 
 export const colorOptions = [
   { name: "Black", hex: "#111111" },
+  { name: "Charcoal", hex: "#3A3A3A" },
+  { name: "Gray", hex: "#8A8A8A" },
   { name: "White", hex: "#F8F8F8" },
+  { name: "Ivory", hex: "#F6F1E8" },
   { name: "Beige", hex: "#D6C4A8" },
+  { name: "Camel", hex: "#B88957" },
+  { name: "Brown", hex: "#7A4A2D" },
+  { name: "Khaki", hex: "#8A8C5D" },
+  { name: "Olive", hex: "#6B7A3A" },
+  { name: "Green", hex: "#2F8F46" },
+  { name: "Mint", hex: "#82D8C8" },
+  { name: "Navy", hex: "#1D2E5B" },
   { name: "Blue", hex: "#3B82F6" },
+  { name: "Sky Blue", hex: "#72B8FF" },
+  { name: "Teal", hex: "#0F766E" },
+  { name: "Purple", hex: "#7C5DFA" },
+  { name: "Lavender", hex: "#B9A6FF" },
+  { name: "Pink", hex: "#F48FB1" },
+  { name: "Rose", hex: "#E85D75" },
+  { name: "Red", hex: "#D62828" },
+  { name: "Orange", hex: "#F97316" },
+  { name: "Mustard", hex: "#D4A017" },
+  { name: "Yellow", hex: "#FACC15" },
+  { name: "Burgundy", hex: "#6E1E2D" },
 ];
 
 export const fitOptions = ["Slim", "Regular", "Oversized"];
