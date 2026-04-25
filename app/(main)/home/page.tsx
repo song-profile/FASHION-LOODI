@@ -71,15 +71,83 @@ function locationLabelFromData(data: unknown) {
   return uniqueParts.length > 0 ? uniqueParts.join(" ") : null;
 }
 
+async function fetchWeatherForCoordinates(latitude: number, longitude: number) {
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    current: "weather_code,temperature_2m",
+    timezone: "auto",
+  });
+  const response = await fetch(
+    `https://api.open-meteo.com/v1/forecast?${params.toString()}`
+  );
+
+  if (!response.ok) throw new Error("weather fetch failed");
+
+  const data = await response.json();
+  const temperature = Number(data?.current?.temperature_2m);
+  const code = Number(data?.current?.weather_code ?? 1);
+  const condition = weatherFromCode(code);
+  let location: string | null = null;
+
+  try {
+    const locationParams = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+      localityLanguage: "ko",
+    });
+    const locationResponse = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?${locationParams.toString()}`
+    );
+
+    if (locationResponse.ok) {
+      location = locationLabelFromData(await locationResponse.json());
+    }
+  } catch {
+    location = null;
+  }
+
+  return {
+    status: "success" as const,
+    temperature,
+    location,
+    ...condition,
+  };
+}
+
+async function fetchApproximateCoordinates() {
+  const response = await fetch("https://ipapi.co/json/");
+  if (!response.ok) throw new Error("location fallback failed");
+
+  const data = await response.json();
+  const latitude = Number(data?.latitude);
+  const longitude = Number(data?.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    throw new Error("invalid fallback coordinates");
+  }
+
+  return { latitude, longitude };
+}
+
 export default function HomeTabPage() {
   const [weather, setWeather] = useState<WeatherState>({ status: "loading" });
 
   useEffect(() => {
+    const loadApproximateWeather = async () => {
+      try {
+        const { latitude, longitude } = await fetchApproximateCoordinates();
+        setWeather(await fetchWeatherForCoordinates(latitude, longitude));
+      } catch {
+        setWeather({
+          status: "error",
+          message: "Weather: 현재 위치를 찾지 못했어요",
+        });
+      }
+    };
+
     if (!navigator.geolocation) {
-      setWeather({
-        status: "denied",
-        message: "Weather: 위치 API를 사용할 수 없어요",
-      });
+      loadApproximateWeather();
       return;
     }
 
@@ -87,47 +155,7 @@ export default function HomeTabPage() {
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          const params = new URLSearchParams({
-            latitude: String(latitude),
-            longitude: String(longitude),
-            current: "weather_code,temperature_2m",
-            timezone: "auto",
-          });
-          const response = await fetch(
-            `https://api.open-meteo.com/v1/forecast?${params.toString()}`
-          );
-
-          if (!response.ok) throw new Error("weather fetch failed");
-
-          const data = await response.json();
-          const temperature = Number(data?.current?.temperature_2m);
-          const code = Number(data?.current?.weather_code ?? 1);
-          const condition = weatherFromCode(code);
-          let location: string | null = null;
-
-          try {
-            const locationParams = new URLSearchParams({
-              latitude: String(latitude),
-              longitude: String(longitude),
-              localityLanguage: "ko",
-            });
-            const locationResponse = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?${locationParams.toString()}`
-            );
-
-            if (locationResponse.ok) {
-              location = locationLabelFromData(await locationResponse.json());
-            }
-          } catch {
-            location = null;
-          }
-
-          setWeather({
-            status: "success",
-            temperature,
-            location,
-            ...condition,
-          });
+          setWeather(await fetchWeatherForCoordinates(latitude, longitude));
         } catch {
           setWeather({
             status: "error",
@@ -135,14 +163,8 @@ export default function HomeTabPage() {
           });
         }
       },
-      (error) => {
-        setWeather({
-          status: error.code === error.PERMISSION_DENIED ? "denied" : "error",
-          message:
-            error.code === error.PERMISSION_DENIED
-              ? "Weather: 위치 권한을 허용해 주세요"
-              : "Weather: 현재 위치를 찾지 못했어요",
-        });
+      () => {
+        loadApproximateWeather();
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 10 * 60 * 1000 }
     );

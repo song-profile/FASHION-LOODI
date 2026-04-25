@@ -98,6 +98,30 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    const redirectSignedInUser = async () => {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
+
+      if (!user) return;
+
+      const metadata = user.user_metadata ?? {};
+      const hasProfile =
+        typeof metadata.full_name === "string" &&
+        metadata.full_name.trim().length > 0 &&
+        typeof metadata.gender === "string" &&
+        metadata.gender.trim().length > 0 &&
+        typeof metadata.birth_date === "string" &&
+        metadata.birth_date.trim().length > 0;
+
+      router.replace(
+        hasProfile ? "/home" : "/profile/setup?next=%2Fhome"
+      );
+    };
+
+    redirectSignedInUser();
+  }, [router]);
+
+  useEffect(() => {
     const state = readOnboardingLocalState();
     if (state.completed) return;
     if (isOnboardingStateStale(state)) {

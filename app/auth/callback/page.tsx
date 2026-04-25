@@ -12,10 +12,14 @@ function AuthCallbackContent() {
   useEffect(() => {
     const completeLogin = async () => {
       const nextPath = searchParams.get("next") ?? "/home";
+      const code = searchParams.get("code");
 
-      const { error } = await supabase.auth.exchangeCodeForSession(
-        window.location.href
-      );
+      if (!code) {
+        router.replace("/");
+        return;
+      }
+
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
 
       if (error) {
         router.replace("/");
