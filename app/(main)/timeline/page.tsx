@@ -19,6 +19,14 @@ import { recentOutfits } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const moodIconMap: Record<string, string> = {
+  보통: "🙂",
+  멋짐: "😎",
+  피곤: "😴",
+  기쁜: "😊",
+  화난: "😡",
+  슬픔: "😢",
+};
 
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -36,6 +44,11 @@ function isSameDay(a: Date, b: Date) {
   );
 }
 
+function moodDisplay(value?: string) {
+  if (!value) return "-";
+  return moodIconMap[value] ?? value;
+}
+
 export default function TimelinePage() {
   const [view, setView] = useState("grid");
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
@@ -43,6 +56,7 @@ export default function TimelinePage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
   const [draftTags, setDraftTags] = useState("");
   const [draftNote, setDraftNote] = useState("");
   const [draftMemo, setDraftMemo] = useState("");
@@ -56,6 +70,7 @@ export default function TimelinePage() {
 
   const startEdit = (entry: DiaryEntry) => {
     setEditingId(entry.id);
+    setDraftTitle(entry.title ?? "");
     setDraftTags(entry.tags.join(", "));
     setDraftNote(entry.styleNote ?? "");
     setDraftMemo(entry.memo ?? "");
@@ -64,6 +79,7 @@ export default function TimelinePage() {
 
   const cancelEdit = () => {
     setEditingId(null);
+    setDraftTitle("");
     setDraftTags("");
     setDraftNote("");
     setDraftMemo("");
@@ -76,6 +92,7 @@ export default function TimelinePage() {
       .map((t) => t.trim())
       .filter(Boolean);
     updateDiaryEntry(editingId, {
+      title: draftTitle.trim() || undefined,
       tags,
       styleNote: draftNote.trim() || undefined,
       memo: draftMemo.trim() || undefined,
@@ -151,23 +168,23 @@ export default function TimelinePage() {
             defaultValue="grid"
             onChange={setView}
           />
-          <div className="grid grid-cols-3 gap-2">
-            <Input placeholder="Weather" />
-            <Input placeholder="Mood" />
-            <Input placeholder="Style" />
-          </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className={view === "calendar" ? "overflow-hidden" : undefined}>
         <CardHeader>
-          <div className="flex items-center justify-between gap-3">
-            <CardTitle>
-              {new Intl.DateTimeFormat("en-US", {
-                month: "long",
-                year: "numeric",
-              }).format(currentMonth)}
-            </CardTitle>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/40">
+                Outfit Calendar
+              </p>
+              <CardTitle className="mt-1 text-xl">
+                {new Intl.DateTimeFormat("en-US", {
+                  month: "long",
+                  year: "numeric",
+                }).format(currentMonth)}
+              </CardTitle>
+            </div>
             {view === "calendar" ? (
               <div className="flex items-center gap-2">
                 <select
@@ -182,7 +199,7 @@ export default function TimelinePage() {
                       ),
                     )
                   }
-                  className="h-8 rounded-lg border border-border px-2 text-sm text-primary/75"
+                  className="h-10 rounded-2xl border border-border bg-white px-3 text-sm font-medium text-primary shadow-[0_4px_14px_rgba(27,42,74,0.06)] outline-none transition focus:border-accent"
                 >
                   {yearOptions.map((year) => (
                     <option key={year} value={year}>
@@ -203,7 +220,7 @@ export default function TimelinePage() {
                       ),
                     )
                   }
-                  className="h-8 rounded-lg border border-border px-2 text-sm text-primary/75"
+                  className="h-10 rounded-2xl border border-border bg-white px-3 text-sm font-medium text-primary shadow-[0_4px_14px_rgba(27,42,74,0.06)] outline-none transition focus:border-accent"
                 >
                   {Array.from({ length: 12 }).map((_, i) => (
                     <option key={i} value={i}>
@@ -220,17 +237,18 @@ export default function TimelinePage() {
         <CardContent>
           {view === "calendar" ? (
             <div className="space-y-3">
-              <div className="grid grid-cols-7 gap-2 text-center text-xs font-medium text-primary/55">
+              <div className="grid grid-cols-7 gap-1 rounded-2xl bg-soft px-2 py-2 text-center text-[11px] font-semibold uppercase text-primary/45">
                 {WEEKDAYS.map((label) => (
                   <div key={label}>{label}</div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-2 text-center text-xs">
+              <div className="grid grid-cols-7 gap-1.5 text-center">
                 {calendarDays.map(({ date, isCurrentMonth }) => {
                   const isSelected = selectedDate ? isSameDay(selectedDate, date) : false;
                   const isToday = isSameDay(new Date(), date);
-                  const hasEntry = entriesByDate.has(formatDateKey(date));
+                  const dayEntries = entriesByDate.get(formatDateKey(date)) ?? [];
+                  const hasEntry = dayEntries.length > 0;
 
                   return (
                     <button
@@ -241,19 +259,33 @@ export default function TimelinePage() {
                         setIsDetailOpen(true);
                       }}
                       className={cn(
-                        "relative h-9 rounded-xl border transition",
+                        "relative flex h-12 flex-col items-center justify-center rounded-2xl border text-sm font-medium transition",
                         isCurrentMonth
-                          ? "border-border text-primary/80"
-                          : "border-border/60 text-primary/35",
-                        isSelected && "border-primary bg-primary text-white",
-                        isToday && !isSelected && "border-primary/40",
+                          ? "border-border bg-white text-primary shadow-[0_4px_14px_rgba(27,42,74,0.04)] hover:border-accent/60"
+                          : "border-transparent bg-soft/45 text-primary/30",
+                        hasEntry && !isSelected && "bg-accent/5",
+                        isToday && !isSelected && "border-accent/60 ring-2 ring-accent/15",
+                        isSelected &&
+                          "border-primary bg-primary text-white shadow-[0_10px_24px_rgba(27,42,74,0.22)]",
                       )}
                     >
                       <span>{date.getDate()}</span>
+                      {hasEntry && dayEntries.length > 1 ? (
+                        <span
+                          className={cn(
+                            "absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold",
+                            isSelected
+                              ? "bg-white/20 text-white"
+                              : "bg-accent text-white",
+                          )}
+                        >
+                          {dayEntries.length}
+                        </span>
+                      ) : null}
                       {hasEntry ? (
                         <span
                           className={cn(
-                            "absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full",
+                            "absolute bottom-1.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full",
                             isSelected ? "bg-white" : "bg-accent",
                           )}
                         />
@@ -264,7 +296,7 @@ export default function TimelinePage() {
               </div>
 
               {selectedDate ? (
-                <p className="text-xs text-primary/65">
+                <p className="rounded-2xl bg-soft px-3 py-2 text-xs font-medium text-primary/65">
                   Selected:{" "}
                   {new Intl.DateTimeFormat("en-US", {
                     year: "numeric",
@@ -355,13 +387,18 @@ export default function TimelinePage() {
                       className="space-y-2 rounded-2xl border border-border p-3"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-primary/45">
-                          {new Intl.DateTimeFormat("en-US", {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          }).format(new Date(entry.createdAt))}
-                          {entry.updatedAt ? " · edited" : ""}
-                        </p>
+                        <div className="space-y-1">
+                          <p className="text-base font-semibold text-primary">
+                            {entry.title || "Untitled Outfit"}
+                          </p>
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-primary/45">
+                            {new Intl.DateTimeFormat("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            }).format(new Date(entry.createdAt))}
+                            {entry.updatedAt ? " · edited" : ""}
+                          </p>
+                        </div>
                         {!isEditing && !isConfirmingDelete ? (
                           <div className="flex gap-1">
                             <button
@@ -382,6 +419,30 @@ export default function TimelinePage() {
                             </button>
                           </div>
                         ) : null}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 rounded-xl bg-soft p-3 text-xs text-primary/70">
+                        <div>
+                          <p className="text-primary/45">저장 시간</p>
+                          <p className="mt-1 font-medium text-primary">
+                            {new Intl.DateTimeFormat("ko-KR", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            }).format(new Date(entry.createdAt))}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-primary/45">날씨</p>
+                          <p className="mt-1 font-medium text-primary">
+                            {entry.weather ?? "-"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-primary/45">무드</p>
+                          <p className="mt-1 font-medium text-primary">
+                            {moodDisplay(entry.mood)}
+                          </p>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
@@ -425,6 +486,16 @@ export default function TimelinePage() {
                         </div>
                       ) : isEditing ? (
                         <div className="space-y-2">
+                          <div>
+                            <label className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary/50">
+                              Title
+                            </label>
+                            <Input
+                              value={draftTitle}
+                              onChange={(e) => setDraftTitle(e.target.value)}
+                              placeholder="Quick note title"
+                            />
+                          </div>
                           <div>
                             <label className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary/50">
                               Tags (comma-separated)
@@ -494,9 +565,12 @@ export default function TimelinePage() {
                             </p>
                           ) : null}
                           {entry.memo ? (
-                            <p className="rounded-xl border border-dashed border-border px-3 py-2 text-xs text-primary/65">
-                              📝 {entry.memo}
-                            </p>
+                            <div className="rounded-xl border border-dashed border-border px-3 py-2 text-xs text-primary/65">
+                              <p className="mb-1 font-medium text-primary">
+                                내용
+                              </p>
+                              <p className="whitespace-pre-line">{entry.memo}</p>
+                            </div>
                           ) : null}
                         </>
                       )}

@@ -3,6 +3,7 @@
 const STORAGE_KEY = "loodi_outfit_diary";
 
 export type DiaryPhoto = { base64: string; mediaType: string };
+export type DiaryAnalyzedItem = { category: string; name: string };
 
 export type DiaryEntry = {
   id: string;
@@ -10,13 +11,18 @@ export type DiaryEntry = {
   createdAt: string; // ISO timestamp
   updatedAt?: string; // ISO timestamp, set on edit
   photos: DiaryPhoto[];
+  title?: string;
+  weather?: string;
+  mood?: string;
+  items?: DiaryAnalyzedItem[];
+  colors?: string[];
   styleNote?: string;
   memo?: string;
   tags: string[];
 };
 
 export type DiaryEntryPatch = Partial<
-  Pick<DiaryEntry, "tags" | "styleNote" | "memo">
+  Pick<DiaryEntry, "tags" | "styleNote" | "memo" | "title" | "weather" | "mood">
 >;
 
 export function formatDateKey(date: Date): string {

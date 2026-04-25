@@ -7,7 +7,11 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { recentOutfits } from "@/lib/mock-data";
+import {
+  diaryPhotoToDataUrl,
+  readDiaryEntries,
+  type DiaryEntry,
+} from "@/lib/outfit-diary";
 
 type WeatherState =
   | { status: "loading" }
@@ -132,6 +136,7 @@ async function fetchApproximateCoordinates() {
 
 export default function HomeTabPage() {
   const [weather, setWeather] = useState<WeatherState>({ status: "loading" });
+  const [recentEntries, setRecentEntries] = useState<DiaryEntry[]>([]);
 
   useEffect(() => {
     const loadApproximateWeather = async () => {
@@ -168,6 +173,16 @@ export default function HomeTabPage() {
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 10 * 60 * 1000 }
     );
+  }, []);
+
+  useEffect(() => {
+    const loadRecentEntries = () => {
+      setRecentEntries(readDiaryEntries().filter((entry) => entry.photos[0]).slice(0, 3));
+    };
+
+    loadRecentEntries();
+    window.addEventListener("focus", loadRecentEntries);
+    return () => window.removeEventListener("focus", loadRecentEntries);
   }, []);
 
   return (
@@ -238,13 +253,32 @@ export default function HomeTabPage() {
           <Link href="/timeline" className="text-xs text-accent">View Timeline</Link>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-2">
-            {recentOutfits.slice(0, 3).map((src) => (
-              <div key={src} className="relative h-24 overflow-hidden rounded-xl">
-                <Image src={src} alt="outfit" fill className="object-cover" />
-              </div>
-            ))}
-          </div>
+          {recentEntries.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2">
+              {recentEntries.map((entry) => {
+                const photo = entry.photos[0];
+                return (
+                  <Link
+                    key={entry.id}
+                    href="/timeline"
+                    className="relative h-24 overflow-hidden rounded-xl"
+                  >
+                    <Image
+                      src={diaryPhotoToDataUrl(photo)}
+                      alt={entry.title ?? `outfit ${entry.date}`}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-primary/55">
+              아직 기록한 사진이 없어요. Record에서 첫 룩을 저장해 보세요.
+            </p>
+          )}
         </CardContent>
       </Card>
 
