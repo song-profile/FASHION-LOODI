@@ -1,0 +1,525 @@
+"use client";
+
+import { Pencil, Trash2 } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { SimpleTabs } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  deleteDiaryEntry,
+  diaryPhotoToDataUrl,
+  formatDateKey,
+  readDiaryEntries,
+  updateDiaryEntry,
+  type DiaryEntry,
+} from "@/lib/outfit-diary";
+import { recentOutfits } from "@/lib/mock-data";
+import { cn } from "@/lib/utils";
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+export default function TimelinePage() {
+  const [view, setView] = useState("grid");
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftTags, setDraftTags] = useState("");
+  const [draftNote, setDraftNote] = useState("");
+  const [draftMemo, setDraftMemo] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEntries(readDiaryEntries());
+  }, []);
+
+  const refreshEntries = () => setEntries(readDiaryEntries());
+
+  const startEdit = (entry: DiaryEntry) => {
+    setEditingId(entry.id);
+    setDraftTags(entry.tags.join(", "));
+    setDraftNote(entry.styleNote ?? "");
+    setDraftMemo(entry.memo ?? "");
+    setConfirmDeleteId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraftTags("");
+    setDraftNote("");
+    setDraftMemo("");
+  };
+
+  const saveEdit = () => {
+    if (!editingId) return;
+    const tags = draftTags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    updateDiaryEntry(editingId, {
+      tags,
+      styleNote: draftNote.trim() || undefined,
+      memo: draftMemo.trim() || undefined,
+    });
+    refreshEntries();
+    cancelEdit();
+  };
+
+  const handleDelete = (id: string) => {
+    deleteDiaryEntry(id);
+    refreshEntries();
+    if (editingId === id) cancelEdit();
+    setConfirmDeleteId(null);
+  };
+
+  const closeDetailModal = () => {
+    setIsDetailOpen(false);
+    cancelEdit();
+    setConfirmDeleteId(null);
+  };
+
+  const entriesByDate = useMemo(() => {
+    const map = new Map<string, DiaryEntry[]>();
+    for (const entry of entries) {
+      const list = map.get(entry.date) ?? [];
+      list.push(entry);
+      map.set(entry.date, list);
+    }
+    return map;
+  }, [entries]);
+
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const startWeekday = monthStart.getDay();
+    const totalDaysInMonth = monthEnd.getDate();
+
+    const totalCells = Math.ceil((startWeekday + totalDaysInMonth) / 7) * 7;
+    return Array.from({ length: totalCells }).map((_, idx) => {
+      const dayOffset = idx - startWeekday + 1;
+      const cellDate = new Date(
+        monthStart.getFullYear(),
+        monthStart.getMonth(),
+        dayOffset,
+      );
+      return {
+        date: cellDate,
+        isCurrentMonth: cellDate.getMonth() === monthStart.getMonth(),
+      };
+    });
+  }, [currentMonth]);
+
+  const yearOptions = useMemo(() => {
+    const now = new Date().getFullYear();
+    return Array.from({ length: 11 }).map((_, idx) => now - 5 + idx);
+  }, []);
+
+  const selectedEntries = selectedDate
+    ? entriesByDate.get(formatDateKey(selectedDate)) ?? []
+    : [];
+
+  return (
+    <div className="space-y-5 relative">
+      <h1 className="text-2xl font-semibold text-primary">Timeline</h1>
+
+      <Card>
+        <CardContent className="space-y-3 pt-5">
+          <SimpleTabs
+            tabs={[
+              { value: "calendar", label: "Calendar View" },
+              { value: "grid", label: "Grid View" },
+            ]}
+            defaultValue="grid"
+            onChange={setView}
+          />
+          <div className="grid grid-cols-3 gap-2">
+            <Input placeholder="Weather" />
+            <Input placeholder="Mood" />
+            <Input placeholder="Style" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>
+              {new Intl.DateTimeFormat("en-US", {
+                month: "long",
+                year: "numeric",
+              }).format(currentMonth)}
+            </CardTitle>
+            {view === "calendar" ? (
+              <div className="flex items-center gap-2">
+                <select
+                  aria-label="Select year"
+                  value={currentMonth.getFullYear()}
+                  onChange={(e) =>
+                    setCurrentMonth(
+                      new Date(
+                        Number(e.target.value),
+                        currentMonth.getMonth(),
+                        1,
+                      ),
+                    )
+                  }
+                  className="h-8 rounded-lg border border-border px-2 text-sm text-primary/75"
+                >
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  aria-label="Select month"
+                  value={currentMonth.getMonth()}
+                  onChange={(e) =>
+                    setCurrentMonth(
+                      new Date(
+                        currentMonth.getFullYear(),
+                        Number(e.target.value),
+                        1,
+                      ),
+                    )
+                  }
+                  className="h-8 rounded-lg border border-border px-2 text-sm text-primary/75"
+                >
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <option key={i} value={i}>
+                      {new Intl.DateTimeFormat("en-US", { month: "short" }).format(
+                        new Date(2026, i, 1),
+                      )}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {view === "calendar" ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-7 gap-2 text-center text-xs font-medium text-primary/55">
+                {WEEKDAYS.map((label) => (
+                  <div key={label}>{label}</div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-2 text-center text-xs">
+                {calendarDays.map(({ date, isCurrentMonth }) => {
+                  const isSelected = selectedDate ? isSameDay(selectedDate, date) : false;
+                  const isToday = isSameDay(new Date(), date);
+                  const hasEntry = entriesByDate.has(formatDateKey(date));
+
+                  return (
+                    <button
+                      key={date.toISOString()}
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate(date);
+                        setIsDetailOpen(true);
+                      }}
+                      className={cn(
+                        "relative h-9 rounded-xl border transition",
+                        isCurrentMonth
+                          ? "border-border text-primary/80"
+                          : "border-border/60 text-primary/35",
+                        isSelected && "border-primary bg-primary text-white",
+                        isToday && !isSelected && "border-primary/40",
+                      )}
+                    >
+                      <span>{date.getDate()}</span>
+                      {hasEntry ? (
+                        <span
+                          className={cn(
+                            "absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full",
+                            isSelected ? "bg-white" : "bg-accent",
+                          )}
+                        />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedDate ? (
+                <p className="text-xs text-primary/65">
+                  Selected:{" "}
+                  {new Intl.DateTimeFormat("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                    weekday: "short",
+                  }).format(selectedDate)}
+                </p>
+              ) : null}
+            </div>
+          ) : entries.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2">
+              {entries.map((entry) => {
+                const cover = entry.photos[0];
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => {
+                      const [y, m, d] = entry.date.split("-").map(Number);
+                      setSelectedDate(new Date(y, m - 1, d));
+                      setIsDetailOpen(true);
+                    }}
+                    className="relative h-28 overflow-hidden rounded-xl"
+                  >
+                    {cover ? (
+                      <Image
+                        src={diaryPhotoToDataUrl(cover)}
+                        alt={`outfit ${entry.date}`}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-soft" />
+                    )}
+                    <span className="absolute bottom-1 left-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] text-white">
+                      {entry.date.slice(5)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-primary/55">
+                아직 저장된 룩이 없어요. Record 탭에서 첫 룩을 기록해 보세요.
+              </p>
+              <div className="grid grid-cols-3 gap-2 opacity-60">
+                {recentOutfits.slice(0, 3).map((src) => (
+                  <div key={src} className="relative h-28 overflow-hidden rounded-xl">
+                    <Image src={src} alt="sample" fill className="object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {isDetailOpen && selectedDate ? (
+        <>
+          <button
+            type="button"
+            aria-label="Close detail modal"
+            className="fixed inset-0 z-40 bg-black/30"
+            onClick={closeDetailModal}
+          />
+          <div className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl">
+            <h3 className="text-lg font-semibold text-primary">Outfit Detail</h3>
+            <p className="mt-1 text-sm text-primary/65">
+              {new Intl.DateTimeFormat("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                weekday: "long",
+              }).format(selectedDate)}
+            </p>
+
+            {selectedEntries.length > 0 ? (
+              <div className="mt-4 space-y-5">
+                {selectedEntries.map((entry) => {
+                  const isEditing = editingId === entry.id;
+                  const isConfirmingDelete = confirmDeleteId === entry.id;
+                  return (
+                    <div
+                      key={entry.id}
+                      className="space-y-2 rounded-2xl border border-border p-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-primary/45">
+                          {new Intl.DateTimeFormat("en-US", {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          }).format(new Date(entry.createdAt))}
+                          {entry.updatedAt ? " · edited" : ""}
+                        </p>
+                        {!isEditing && !isConfirmingDelete ? (
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              aria-label="Edit entry"
+                              onClick={() => startEdit(entry)}
+                              className="rounded-lg p-1.5 text-primary/65 hover:bg-soft"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Delete entry"
+                              onClick={() => setConfirmDeleteId(entry.id)}
+                              className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {entry.photos.slice(0, 4).map((photo, idx) => (
+                          <div
+                            key={`${entry.id}-${idx}`}
+                            className="relative h-24 overflow-hidden rounded-xl border border-border"
+                          >
+                            <Image
+                              src={diaryPhotoToDataUrl(photo)}
+                              alt={`outfit ${entry.date}`}
+                              fill
+                              unoptimized
+                              className="object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+
+                      {isConfirmingDelete ? (
+                        <div className="space-y-2 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                          <p className="text-xs text-rose-700">
+                            이 기록을 삭제할까요? 되돌릴 수 없습니다.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(entry.id)}
+                              className="flex-1 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white"
+                            >
+                              삭제
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="flex-1 rounded-lg border border-rose-200 px-3 py-1.5 text-xs text-rose-700"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      ) : isEditing ? (
+                        <div className="space-y-2">
+                          <div>
+                            <label className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary/50">
+                              Tags (comma-separated)
+                            </label>
+                            <Input
+                              value={draftTags}
+                              onChange={(e) => setDraftTags(e.target.value)}
+                              placeholder="e.g. 가을, 캐주얼, 차분한"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary/50">
+                              Style Note
+                            </label>
+                            <Textarea
+                              rows={3}
+                              value={draftNote}
+                              onChange={(e) => setDraftNote(e.target.value)}
+                              placeholder="AI 분석 내용 또는 직접 작성"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary/50">
+                              Memo
+                            </label>
+                            <Textarea
+                              rows={2}
+                              value={draftMemo}
+                              onChange={(e) => setDraftMemo(e.target.value)}
+                              placeholder="개인 메모"
+                            />
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={saveEdit}
+                              className="flex-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white"
+                            >
+                              저장
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEdit}
+                              className="flex-1 rounded-lg border border-border px-3 py-1.5 text-xs text-primary/75"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {entry.tags.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {entry.tags.map((tag) => (
+                                <span
+                                  key={`${entry.id}-${tag}`}
+                                  className="rounded-full border border-border px-3 py-1 text-xs text-primary/75"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                          {entry.styleNote ? (
+                            <p className="whitespace-pre-line rounded-xl bg-soft p-3 text-xs leading-relaxed text-primary/70">
+                              {entry.styleNote}
+                            </p>
+                          ) : null}
+                          {entry.memo ? (
+                            <p className="rounded-xl border border-dashed border-border px-3 py-2 text-xs text-primary/65">
+                              📝 {entry.memo}
+                            </p>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-primary/55">
+                이 날에는 기록이 없어요.
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={closeDetailModal}
+              className="mt-5 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white"
+            >
+              Close
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
