@@ -1,12 +1,153 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Camera, ImagePlus, Sparkles, CalendarDays, Flame, Trophy } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { recentOutfits } from "@/lib/mock-data";
 
+type WeatherState =
+  | { status: "loading" }
+  | {
+      status: "success";
+      temperature: number;
+      icon: string;
+      label: string;
+      location: string | null;
+    }
+  | { status: "denied" | "error"; message: string };
+
+function weatherFromCode(code: number) {
+  if (code === 0) return { icon: "☀️", label: "Sunny" };
+  if (code <= 3) return { icon: "☁️", label: "Cloudy" };
+  if ([45, 48].includes(code)) return { icon: "🌫️", label: "Foggy" };
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) {
+    return { icon: "🌧️", label: "Rainy" };
+  }
+  if (code >= 71 && code <= 77) return { icon: "❄️", label: "Snowy" };
+  if (code >= 95) return { icon: "⛈️", label: "Stormy" };
+  return { icon: "🌤️", label: "Weather" };
+}
+
+function normalizeLocationName(value: string) {
+  return value
+    .replace("서울특별시", "서울시")
+    .replace("부산광역시", "부산시")
+    .replace("대구광역시", "대구시")
+    .replace("인천광역시", "인천시")
+    .replace("광주광역시", "광주시")
+    .replace("대전광역시", "대전시")
+    .replace("울산광역시", "울산시")
+    .replace("세종특별자치시", "세종시");
+}
+
+function locationLabelFromData(data: unknown) {
+  if (!data || typeof data !== "object") return null;
+
+  const record = data as {
+    city?: unknown;
+    locality?: unknown;
+    principalSubdivision?: unknown;
+  };
+  const city =
+    typeof record.city === "string" && record.city.length > 0
+      ? record.city
+      : typeof record.principalSubdivision === "string"
+        ? record.principalSubdivision
+        : null;
+  const district =
+    typeof record.locality === "string" && record.locality.length > 0
+      ? record.locality
+      : null;
+
+  const parts = [city, district]
+    .filter((part): part is string => Boolean(part))
+    .map(normalizeLocationName);
+  const uniqueParts = Array.from(new Set(parts));
+
+  return uniqueParts.length > 0 ? uniqueParts.join(" ") : null;
+}
+
 export default function HomeTabPage() {
+  const [weather, setWeather] = useState<WeatherState>({ status: "loading" });
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setWeather({
+        status: "denied",
+        message: "Weather: 위치 API를 사용할 수 없어요",
+      });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const params = new URLSearchParams({
+            latitude: String(latitude),
+            longitude: String(longitude),
+            current: "weather_code,temperature_2m",
+            timezone: "auto",
+          });
+          const response = await fetch(
+            `https://api.open-meteo.com/v1/forecast?${params.toString()}`
+          );
+
+          if (!response.ok) throw new Error("weather fetch failed");
+
+          const data = await response.json();
+          const temperature = Number(data?.current?.temperature_2m);
+          const code = Number(data?.current?.weather_code ?? 1);
+          const condition = weatherFromCode(code);
+          let location: string | null = null;
+
+          try {
+            const locationParams = new URLSearchParams({
+              latitude: String(latitude),
+              longitude: String(longitude),
+              localityLanguage: "ko",
+            });
+            const locationResponse = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?${locationParams.toString()}`
+            );
+
+            if (locationResponse.ok) {
+              location = locationLabelFromData(await locationResponse.json());
+            }
+          } catch {
+            location = null;
+          }
+
+          setWeather({
+            status: "success",
+            temperature,
+            location,
+            ...condition,
+          });
+        } catch {
+          setWeather({
+            status: "error",
+            message: "Weather: 날씨를 불러오지 못했어요",
+          });
+        }
+      },
+      (error) => {
+        setWeather({
+          status: error.code === error.PERMISSION_DENIED ? "denied" : "error",
+          message:
+            error.code === error.PERMISSION_DENIED
+              ? "Weather: 위치 권한을 허용해 주세요"
+              : "Weather: 현재 위치를 찾지 못했어요",
+        });
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 10 * 60 * 1000 }
+    );
+  }, []);
+
   return (
     <div className="space-y-5">
       <header className="space-y-2">
@@ -23,7 +164,15 @@ export default function HomeTabPage() {
           <CardTitle>Today Outfit Recommendation</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-primary/70">Weather: 10°C ☁️</p>
+          <p className="text-sm text-primary/70">
+            {weather.status === "loading"
+              ? "Weather: 현재 위치 확인 중..."
+              : weather.status === "success"
+                ? `Weather: ${Math.round(weather.temperature)}°C ${weather.icon}${
+                    weather.location ? ` · ${weather.location}` : ""
+                  }`
+                : weather.message}
+          </p>
           <div className="rounded-2xl bg-soft p-4 text-sm text-primary">
             <p className="font-medium">Recommended Outfit</p>
             <p>Coat · Wide Pants · Boots</p>
