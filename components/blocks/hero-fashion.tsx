@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { CalendarDays, Hexagon, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -17,29 +18,25 @@ import { cn } from "@/lib/utils";
 
 const valueCards = [
   {
-    title: "Daily Outfit Log",
-    description: "Capture each look in seconds with clean, structured entries.",
+    icon: CalendarDays,
+    title: "매일의 착장을 기록",
+    description: "날씨, 감정, TPO와 함께 타임라인으로",
   },
   {
-    title: "AI Style Intelligence",
-    description: "Understand your patterns, silhouettes, and repeat strengths.",
+    icon: Hexagon,
+    title: "AI가 분석하는 Style DNA",
+    description: "색상, 실루엣, 아이템을 자동 인식",
   },
   {
-    title: "Seasonal Closet Clarity",
-    description: "Build a smarter wardrobe with weather-aware recommendations.",
+    icon: Star,
+    title: "쌓일수록 정밀해지는 추천",
+    description: "맥락 기반 개인화 코디 추천",
   },
-];
-
-const carouselItems = [
-  "Editorial Looks",
-  "Mood Tracking",
-  "Smart Tagging",
-  "Weekly Recap",
 ];
 
 function GoogleMark() {
   return (
-    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-soft">
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
         <path
           fill="#4285F4"
@@ -194,41 +191,28 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-32">
+    <div className="min-h-screen bg-background pb-32">
       <motion.main
         variants={revealContainer}
         initial="hidden"
         animate="show"
-        className="mx-auto w-full max-w-md px-4 py-6"
+        className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-md flex-col justify-center px-8 py-10"
       >
-        <motion.header variants={revealItem} className="space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/80 px-3 py-1.5 text-sm">
-            <span className="h-2 w-2 rounded-full bg-[#f8b3c4]" />
-            <span className="font-semibold tracking-tight text-primary">
-              LOODI
-            </span>
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight text-primary">LOODI</h1>
-          <p className="text-base text-primary/70">Your Style, Recorded.</p>
+        <motion.header variants={revealItem} className="text-center">
+          <h1 className="font-serif text-7xl font-black tracking-tight text-primary">
+            LOODI
+          </h1>
+          <p className="mt-3 font-serif text-xl font-semibold italic text-accent">
+            Your Style, Recorded.
+          </p>
+          <p className="mt-5 text-xs font-medium leading-6 text-muted-foreground">
+            기록이 쌓일수록, 스타일이 선명해진다.
+            <br />
+            AI와 함께하는 나만의 패션 다이어리
+          </p>
         </motion.header>
 
-        <motion.section variants={revealItem} className="mt-6">
-          <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2">
-            {carouselItems.map((item, index) => (
-              <div
-                key={item}
-                className="min-w-[220px] snap-start rounded-2xl border border-border/80 bg-gradient-to-br from-rose-50 via-white to-amber-50 p-4"
-              >
-                <p className="text-xs uppercase tracking-[0.2em] text-primary/45">
-                  {`0${index + 1}`}
-                </p>
-                <p className="mt-2 text-sm font-medium text-primary">{item}</p>
-              </div>
-            ))}
-          </div>
-        </motion.section>
-
-        <motion.section variants={revealItem} className="mt-4 space-y-3">
+        <motion.section variants={revealItem} className="mt-16 space-y-6">
           {showResume ? (
             <div className="rounded-2xl border border-border bg-soft px-4 py-3">
               <p className="text-sm text-primary/75">
@@ -253,26 +237,35 @@ export default function HomePage() {
             </div>
           ) : null}
 
-          {valueCards.map((card) => (
+          {valueCards.map((card) => {
+            const Icon = card.icon;
+            return (
             <article
               key={card.title}
-              className="rounded-2xl border border-border/80 bg-white px-4 py-4 shadow-[0_6px_20px_rgba(27,42,74,0.05)]"
+              className="flex items-center gap-4"
             >
-              <h2 className="text-sm font-semibold tracking-tight text-primary">
-                {card.title}
-              </h2>
-              <p className="mt-1 text-sm leading-relaxed text-primary/65">
-                {card.description}
-              </p>
+              <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-2xl bg-soft text-accent">
+                <Icon size={28} strokeWidth={1.8} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-primary">
+                  {card.title}
+                </h2>
+                <p className="mt-1 text-base font-semibold leading-relaxed text-muted-foreground">
+                  {card.description}
+                </p>
+              </div>
             </article>
-          ))}
+            );
+          })}
         </motion.section>
       </motion.main>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/80 bg-white/95 px-4 py-4 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/80 bg-background/95 px-4 py-4 backdrop-blur">
         <div className="mx-auto w-full max-w-md space-y-3">
           <Button
-            className="h-11 w-full"
+            variant="outline"
+            className="h-11 w-full border-border bg-card text-primary"
             onClick={() => router.push("/onboarding/style")}
           >
             시작하기
@@ -280,7 +273,7 @@ export default function HomePage() {
           <button
             type="button"
             onClick={openLogin}
-            className="block w-full text-center text-sm text-primary/70 underline-offset-4 hover:underline"
+            className="flex h-11 w-full items-center justify-center rounded-2xl border border-border bg-card text-sm font-medium text-muted-foreground transition hover:border-accent/35 hover:text-accent"
           >
             이미 계정이 있어요
           </button>

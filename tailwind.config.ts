@@ -39,6 +39,7 @@ const config: Config = {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
         },
+        soft: "hsl(var(--soft))",
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
@@ -53,7 +54,7 @@ const config: Config = {
         },
       },
       boxShadow: {
-        soft: "0 10px 30px rgba(27, 42, 74, 0.08)",
+        soft: "0 10px 30px rgba(74, 51, 39, 0.08)",
       },
       borderRadius: {
         lg: "var(--radius)",
