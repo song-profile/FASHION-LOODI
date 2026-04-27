@@ -21,6 +21,7 @@ type Analysis = {
 };
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const ANALYSIS_RETRY_DELAYS_MS = [2000, 4000, 6000, 8000, 10000, 12000];
 const weatherOptions = ["☀️", "☁️", "🌧️"];
 const moodOptions = [
   { icon: "🙂", label: "보통" },
@@ -31,17 +32,34 @@ const moodOptions = [
   { icon: "😢", label: "슬픔" },
 ];
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const idx = result.indexOf(",");
-      resolve(idx >= 0 ? result.slice(idx + 1) : result);
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
+function isTemporaryAnalysisError(message: string) {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("503") ||
+    lower.includes("unavailable") ||
+    lower.includes("high demand") ||
+    lower.includes("429") ||
+    lower.includes("quota") ||
+    lower.includes("resource_exhausted") ||
+    message.includes("AI 분석 서버가 잠시 바쁩니다") ||
+    message.includes("잠시 바쁩니다")
+  );
+}
+
+function analysisErrorMessage(message: string) {
+  if (isTemporaryAnalysisError(message)) {
+    return "AI 분석 서버가 잠시 바쁩니다. 잠깐 후 다시 시도해 주세요.";
+  }
+
+  if (message.includes("{") || message.includes("Analysis failed")) {
+    return "AI 분석을 완료하지 못했어요. 다시 시도해 주세요.";
+  }
+
+  return message || "AI 분석을 완료하지 못했어요. 다시 시도해 주세요.";
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 export default function RecordPage() {
@@ -52,6 +70,7 @@ export default function RecordPage() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState("분석중입니다. 잠시만 기다려주세요");
   const [error, setError] = useState<string | null>(null);
   const [selectedWeather, setSelectedWeather] = useState(weatherOptions[0]);
   const [selectedMood, setSelectedMood] = useState(moodOptions[0].icon);
@@ -97,23 +116,63 @@ export default function RecordPage() {
   async function runAnalysis() {
     if (!imageFile) return;
     setAnalyzing(true);
+    setAnalysisStatus("분석중입니다. 잠시만 기다려주세요");
     setError(null);
+    setAnalysis(null);
     setStep(2);
     try {
-      const base64 = await fileToBase64(imageFile);
-      const res = await fetch("/api/analyze-outfit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64, mediaType: imageFile.type }),
-      });
-      if (!res.ok) {
-        const { error: msg } = await res.json().catch(() => ({ error: "Analysis failed" }));
-        throw new Error(msg || `HTTP ${res.status}`);
+      const analysisImage = await compressImageForUpload(imageFile, 1024, 0.78);
+
+      for (let attempt = 0; attempt <= ANALYSIS_RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+          if (attempt > 0) {
+            setAnalysisStatus(
+              `AI 분석 서버가 잠시 바쁩니다. 자동으로 다시 시도 중입니다 (${attempt}/${ANALYSIS_RETRY_DELAYS_MS.length}).`,
+            );
+          }
+
+          const res = await fetch("/api/analyze-outfit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              image: analysisImage.base64,
+              mediaType: analysisImage.mediaType,
+            }),
+          });
+
+          if (!res.ok) {
+            const errorBody = await res
+              .json()
+              .catch(() => ({ error: "Analysis failed", retryable: false }));
+            const msg = errorBody?.error || `HTTP ${res.status}`;
+            const retryable = Boolean(errorBody?.retryable) || isTemporaryAnalysisError(msg);
+            if (retryable && attempt < ANALYSIS_RETRY_DELAYS_MS.length) {
+              await wait(ANALYSIS_RETRY_DELAYS_MS[attempt]);
+              continue;
+            }
+            throw new Error(msg);
+          }
+
+          const data: Analysis = await res.json();
+          setAnalysis(data);
+          setAnalysisStatus("AI analysis complete");
+          return;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Analysis failed";
+          if (
+            isTemporaryAnalysisError(message) &&
+            attempt < ANALYSIS_RETRY_DELAYS_MS.length
+          ) {
+            await wait(ANALYSIS_RETRY_DELAYS_MS[attempt]);
+            continue;
+          }
+          throw err;
+        }
       }
-      const data: Analysis = await res.json();
-      setAnalysis(data);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Analysis failed";
+      const msg = analysisErrorMessage(
+        err instanceof Error ? err.message : "Analysis failed",
+      );
       setError(msg);
     } finally {
       setAnalyzing(false);
@@ -189,7 +248,7 @@ export default function RecordPage() {
             <div className="space-y-3">
               <p className="text-sm text-primary/70">
                 {analyzing
-                  ? "분석중입니다. 잠시만 기다려주세요"
+                  ? analysisStatus
                   : error
                     ? error
                     : "AI analysis complete"}

@@ -34,7 +34,7 @@ export const colorOptions = [
   { name: "Burgundy", hex: "#6E1E2D" },
 ];
 
-export const fitOptions = ["Slim", "Regular", "Oversized"];
+export const fitOptions = ["Slim", "Regular", "Oversized", "No preference"];
 
 export const recentOutfits = [
   "https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?auto=format&fit=crop&w=400&q=80",

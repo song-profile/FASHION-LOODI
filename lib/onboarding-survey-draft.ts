@@ -1,6 +1,6 @@
 import { writeOnboardingLocalState } from "@/lib/onboarding-persistence";
 
-export type SurveyFit = "Slim" | "Regular" | "Oversized";
+export type SurveyFit = "Slim" | "Regular" | "Oversized" | "No preference";
 
 export type SurveyDraft = {
   styles: string[];
@@ -30,7 +30,10 @@ export function readSurveyDraft(): SurveyDraft {
       styles: Array.isArray(parsed.styles) ? parsed.styles : [],
       colors: Array.isArray(parsed.colors) ? parsed.colors : [],
       fit:
-        parsed.fit === "Slim" || parsed.fit === "Regular" || parsed.fit === "Oversized"
+        parsed.fit === "Slim" ||
+        parsed.fit === "Regular" ||
+        parsed.fit === "Oversized" ||
+        parsed.fit === "No preference"
           ? parsed.fit
           : null,
       skipped: Boolean(parsed.skipped),

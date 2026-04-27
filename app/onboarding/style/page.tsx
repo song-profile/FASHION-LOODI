@@ -11,12 +11,36 @@ import { readSurveyDraft, writeSurveyDraft } from "@/lib/onboarding-survey-draft
 import { cn } from "@/lib/utils";
 
 const styleSurveyOptions = [
-  { id: "minimal-luxe", label: "Minimal Luxe", note: "Clean silhouettes, refined neutrals" },
-  { id: "quiet-tailoring", label: "Quiet Tailoring", note: "Sharp structure, effortless polish" },
-  { id: "soft-street", label: "Soft Street", note: "Relaxed layers with elevated basics" },
-  { id: "modern-classic", label: "Modern Classic", note: "Timeless pieces with a current edge" },
-  { id: "artful-feminine", label: "Artful Feminine", note: "Delicate textures and expressive detail" },
-  { id: "bold-editorial", label: "Bold Editorial", note: "Statement shapes and directional styling" },
+  {
+    id: "casual",
+    label: "Casual",
+    note: "일상적이고 편안한 무드",
+    substyles: ["아메카지", "시티보이", "프레피", "워크웨어", "빈티지"],
+  },
+  {
+    id: "street",
+    label: "Street",
+    note: "자유롭고 강한 개성",
+    substyles: ["스트릿", "힙합", "스케이터", "테크웨어"],
+  },
+  {
+    id: "minimal",
+    label: "Minimal",
+    note: "정제된 실루엣과 절제된 톤",
+    substyles: ["미니멀", "모던", "톤온톤", "클린핏"],
+  },
+  {
+    id: "classic",
+    label: "Classic",
+    note: "단정하고 타임리스한 스타일",
+    substyles: ["클래식", "트래드", "아이비", "테일러드"],
+  },
+  {
+    id: "sporty",
+    label: "Sporty",
+    note: "활동감 있는 기능성 중심",
+    substyles: ["애슬레저", "러닝", "고프코어", "스포티"],
+  },
 ];
 
 export default function StyleOnboardingPage() {
@@ -37,10 +61,21 @@ export default function StyleOnboardingPage() {
     writeSurveyDraft({ styles: selected, skipped: false });
   }, [selected, hydrated]);
 
-  const toggle = (name: string) => {
+  const toggleStyle = (name: string) => {
     setSelected((prev) =>
       prev.includes(name) ? prev.filter((v) => v !== name) : [...prev, name]
     );
+  };
+
+  const toggleCategory = (option: (typeof styleSurveyOptions)[number]) => {
+    setSelected((prev) => {
+      const active = prev.includes(option.id);
+      if (active) {
+        const removeSet = new Set([option.id, ...option.substyles]);
+        return prev.filter((value) => !removeSet.has(value));
+      }
+      return [...prev, option.id];
+    });
   };
 
   const handleNext = () => {
@@ -85,37 +120,87 @@ export default function StyleOnboardingPage() {
             const active = selected.includes(option.id);
 
             return (
-              <motion.button
+              <motion.div
                 key={option.id}
-                type="button"
-                onClick={() => toggle(option.id)}
+                role="button"
+                tabIndex={0}
+                onClick={() => toggleCategory(option)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  toggleCategory(option);
+                }}
                 whileTap={{ scale: 0.985 }}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03, duration: 0.22 }}
                 className={cn(
-                  "w-full rounded-2xl border bg-white/90 px-4 py-4 text-left backdrop-blur-sm transition-all",
+                  "w-full cursor-pointer rounded-3xl border bg-card/90 px-4 py-4 text-left backdrop-blur-sm transition-all",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                   active
-                    ? "border-primary/20 shadow-[0_8px_28px_rgba(27,42,74,0.12)] ring-1 ring-accent/35"
-                    : "border-border/90 hover:border-primary/20 hover:bg-white"
+                    ? "border-accent/45 shadow-[0_10px_32px_rgba(74,51,39,0.12)] ring-1 ring-accent/30"
+                    : "border-border/90 hover:border-accent/25 hover:bg-card"
                 )}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium tracking-tight text-primary">{option.label}</p>
-                    <p className="text-xs leading-relaxed text-primary/65">{option.note}</p>
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-base font-semibold tracking-tight text-primary">
+                        {option.label}
+                      </p>
+                      <p className="text-sm leading-relaxed text-primary/65">
+                        {option.note}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full border text-xs font-semibold",
+                        active
+                          ? "border-primary bg-primary text-white"
+                          : "border-border text-transparent"
+                      )}
+                    >
+                      ✓
+                    </span>
                   </div>
-                  <span
-                    className={cn(
-                      "mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full border text-[10px] font-semibold",
-                      active ? "border-primary bg-primary text-white" : "border-border text-transparent"
-                    )}
-                  >
-                    ✓
-                  </span>
+
+                  {active ? (
+                    <>
+                      <div className="h-px bg-border" />
+                      <div className="flex flex-wrap gap-1.5">
+                        {option.substyles.map((substyle) => {
+                          const subActive = selected.includes(substyle);
+                          return (
+                            <span
+                              key={substyle}
+                              role="button"
+                              tabIndex={0}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleStyle(substyle);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key !== "Enter" && event.key !== " ") return;
+                                event.preventDefault();
+                                event.stopPropagation();
+                                toggleStyle(substyle);
+                              }}
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                                subActive
+                                  ? "border-primary bg-primary text-white"
+                                  : "border-border bg-card text-primary/70 hover:border-accent/35"
+                              )}
+                            >
+                              {substyle}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : null}
                 </div>
-              </motion.button>
+              </motion.div>
             );
           })}
         </motion.div>

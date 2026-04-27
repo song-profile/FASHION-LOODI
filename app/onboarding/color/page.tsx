@@ -12,12 +12,31 @@ import { colorOptions } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
 const MAX_COLORS = 3;
+const PRIMARY_COLOR_NAMES = [
+  "Black",
+  "White",
+  "Gray",
+  "Navy",
+  "Brown",
+  "Red",
+  "Green",
+  "Blue",
+  "Beige",
+  "Ivory",
+];
+const primaryColors = PRIMARY_COLOR_NAMES.map((name) =>
+  colorOptions.find((color) => color.name === name),
+).filter((color): color is (typeof colorOptions)[number] => Boolean(color));
+const otherColors = colorOptions.filter(
+  (color) => !PRIMARY_COLOR_NAMES.includes(color.name),
+);
 
 export default function ColorOnboardingPage() {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
+  const [showOtherColors, setShowOtherColors] = useState(false);
   const [limitError, setLimitError] = useState(false);
 
   useEffect(() => {
@@ -89,7 +108,7 @@ export default function ColorOnboardingPage() {
         }
       >
         <motion.div initial={{ x: 22, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.26, ease: "easeOut" }} className="grid grid-cols-2 gap-3">
-          {colorOptions.map((color, index) => {
+          {primaryColors.map((color, index) => {
             const active = selected.includes(color.name);
             const capped = !active && selected.length >= MAX_COLORS;
 
@@ -103,18 +122,72 @@ export default function ColorOnboardingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03, duration: 0.22 }}
                 className={cn(
-                  "flex items-center gap-3 rounded-2xl border p-4 text-left transition-all",
+                  "flex min-h-20 items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-all",
                   active
-                    ? "border-primary/20 ring-1 ring-accent/35 shadow-[0_8px_28px_rgba(27,42,74,0.12)]"
+                    ? "border-accent/45 ring-1 ring-accent/35 shadow-[0_8px_28px_rgba(74,51,39,0.12)]"
                     : "border-border",
                   capped && "opacity-55"
                 )}
               >
-                <span className="h-6 w-6 rounded-full border border-border" style={{ backgroundColor: color.hex }} />
-                <span className="text-sm font-medium text-primary">{color.name}</span>
+                <span
+                  className="h-8 w-8 rounded-full border border-border shadow-sm"
+                  style={{ backgroundColor: color.hex }}
+                />
+                <span className="text-base font-semibold text-primary">{color.name}</span>
               </motion.button>
             );
           })}
+
+          <motion.button
+            type="button"
+            onClick={() => setShowOtherColors((prev) => !prev)}
+            whileTap={{ scale: 0.98 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: primaryColors.length * 0.03, duration: 0.22 }}
+            className="col-span-2 flex min-h-20 items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card p-4 text-primary transition hover:border-accent/45"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-lg font-semibold text-white">
+              +
+            </span>
+            <span className="text-base font-semibold">기타 색상</span>
+          </motion.button>
+
+          {showOtherColors ? (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="col-span-2 grid grid-cols-2 gap-2 rounded-2xl border border-border bg-soft p-3"
+            >
+              {otherColors.map((color) => {
+                const active = selected.includes(color.name);
+                const capped = !active && selected.length >= MAX_COLORS;
+
+                return (
+                  <button
+                    key={color.name}
+                    type="button"
+                    onClick={() => toggle(color.name)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl border bg-card px-3 py-2 text-left transition",
+                      active
+                        ? "border-accent/45 ring-1 ring-accent/35"
+                        : "border-border",
+                      capped && "opacity-55",
+                    )}
+                  >
+                    <span
+                      className="h-5 w-5 rounded-full border border-border"
+                      style={{ backgroundColor: color.hex }}
+                    />
+                    <span className="truncate text-xs font-medium text-primary">
+                      {color.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </motion.div>
+          ) : null}
         </motion.div>
       </OnboardingShell>
 

@@ -32,6 +32,7 @@ const SYSTEM_PROMPT = `당신은 한국 사용자의 데일리 코디를 큐레�
 - 오늘 사진이 없으면 처음부터 풀 코디(상의/하의/아우터/신발 중 최소 3개)를 제안합니다.
 - 날씨(기온, 컨디션)에 적합한 두께/소재를 고려합니다.
 - recommendedItems의 각 name은 "색상 + 구체 아이템명" 형식 (예: "네이비 오버사이즈 후드"). searchKeyword는 무신사 검색에 적합한 짧은 한국어 키워드(2-4단어, 색상+아이템). 예: "네이비 오버사이즈 후드".
+- recommendedItems 배열 순서는 아우터가 있으면 반드시 상의보다 먼저 오도록 합니다. 권장 순서: 아우터 → 상의 → 원피스 → 하의 → 신발 → 가방 → 액세서리 → 모자.
 - recommendedColors는 추천 코디 전체의 컬러 팔레트(2-4개).
 - reasoning은 왜 이 코디를 추천했는지 사용자의 선호와 오늘 상황을 1-2문장으로 한국어로 설명합니다.`;
 
@@ -88,6 +89,18 @@ function summarizeRecentEntries(entries: RecommendInput["recentEntries"]) {
     }`;
   });
   return lines.join("\n");
+}
+
+function isTemporaryModelError(message: string) {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("503") ||
+    lower.includes("unavailable") ||
+    lower.includes("high demand") ||
+    lower.includes("429") ||
+    lower.includes("quota") ||
+    lower.includes("resource_exhausted")
+  );
 }
 
 export async function POST(req: Request) {
@@ -166,6 +179,20 @@ export async function POST(req: Request) {
     return NextResponse.json(parsed);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: `Recommendation failed: ${message}` }, { status: 500 });
+    if (isTemporaryModelError(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "AI 추천 서버가 잠시 바쁩니다. 잠깐 후 다시 시도해 주세요.",
+          retryable: true,
+        },
+        { status: 503 },
+      );
+    }
+
+    return NextResponse.json(
+      { error: "오늘 코디 추천을 불러오지 못했어요. 다시 시도해 주세요." },
+      { status: 500 },
+    );
   }
 }

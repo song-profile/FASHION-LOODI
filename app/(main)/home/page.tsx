@@ -48,15 +48,30 @@ function weatherFromCode(code: number) {
 }
 
 function normalizeLocationName(value: string) {
-  return value
+  const normalized = value
     .replace("서울특별시", "서울시")
     .replace("부산광역시", "부산시")
     .replace("대구광역시", "대구시")
     .replace("인천광역시", "인천시")
     .replace("광주광역시", "광주시")
     .replace("대전광역시", "대전시")
-    .replace("울산광역시", "울산시")
-    .replace("세종특별자치시", "세종시");
+    .replace("울산광역시", "울산시");
+
+  if (normalized === "세종특별자치시") return "세종시";
+  return normalized;
+}
+
+function cleanLocationPart(value: unknown) {
+  if (typeof value !== "string") return null;
+  const cleaned = normalizeLocationName(value.trim());
+  if (!cleaned || cleaned === "대한민국" || cleaned === "South Korea") return null;
+  return cleaned;
+}
+
+function compactLocationParts(parts: Array<string | null>) {
+  const cleaned = parts.filter((part): part is string => Boolean(part));
+  const unique = Array.from(new Set(cleaned));
+  return unique.slice(0, 2).join(" ") || null;
 }
 
 function locationLabelFromData(data: unknown) {
@@ -66,24 +81,96 @@ function locationLabelFromData(data: unknown) {
     city?: unknown;
     locality?: unknown;
     principalSubdivision?: unknown;
+    localityInfo?: {
+      administrative?: Array<{
+        name?: unknown;
+        description?: unknown;
+        adminLevel?: unknown;
+      }>;
+    };
   };
+
+  const administrative = record.localityInfo?.administrative ?? [];
+  const administrativeNames = administrative
+    .map((item) => cleanLocationPart(item.name))
+    .filter((part): part is string => Boolean(part));
+
   const city =
-    typeof record.city === "string" && record.city.length > 0
-      ? record.city
-      : typeof record.principalSubdivision === "string"
-        ? record.principalSubdivision
-        : null;
+    cleanLocationPart(record.city) ??
+    administrativeNames.find((name) => /(시|군)$/.test(name)) ??
+    cleanLocationPart(record.principalSubdivision) ??
+    null;
   const district =
-    typeof record.locality === "string" && record.locality.length > 0
-      ? record.locality
-      : null;
+    cleanLocationPart(record.locality) ??
+    administrativeNames.find((name) => /(구|동|읍|면)$/.test(name)) ??
+    null;
 
-  const parts = [city, district]
-    .filter((part): part is string => Boolean(part))
-    .map(normalizeLocationName);
-  const uniqueParts = Array.from(new Set(parts));
+  return compactLocationParts([city, district]);
+}
 
-  return uniqueParts.length > 0 ? uniqueParts.join(" ") : null;
+function locationLabelFromOsm(data: unknown) {
+  if (!data || typeof data !== "object") return null;
+
+  const record = data as {
+    address?: Record<string, unknown>;
+  };
+  const address = record.address;
+  if (!address) return null;
+
+  const city =
+    cleanLocationPart(address.city) ??
+    cleanLocationPart(address.town) ??
+    cleanLocationPart(address.county) ??
+    cleanLocationPart(address.state);
+  const district =
+    cleanLocationPart(address.borough) ??
+    cleanLocationPart(address.suburb) ??
+    cleanLocationPart(address.neighbourhood) ??
+    cleanLocationPart(address.quarter);
+
+  return compactLocationParts([city, district]);
+}
+
+async function fetchLocationLabel(latitude: number, longitude: number) {
+  try {
+    const locationParams = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+      localityLanguage: "ko",
+    });
+    const locationResponse = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?${locationParams.toString()}`,
+    );
+
+    if (locationResponse.ok) {
+      const label = locationLabelFromData(await locationResponse.json());
+      if (label) return label;
+    }
+  } catch {
+    // Try the OpenStreetMap fallback below.
+  }
+
+  try {
+    const osmParams = new URLSearchParams({
+      format: "jsonv2",
+      lat: String(latitude),
+      lon: String(longitude),
+      zoom: "16",
+      addressdetails: "1",
+      "accept-language": "ko",
+    });
+    const osmResponse = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?${osmParams.toString()}`,
+    );
+
+    if (osmResponse.ok) {
+      return locationLabelFromOsm(await osmResponse.json());
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 async function fetchWeatherForCoordinates(latitude: number, longitude: number) {
@@ -102,25 +189,9 @@ async function fetchWeatherForCoordinates(latitude: number, longitude: number) {
   const data = await response.json();
   const temperature = Number(data?.current?.temperature_2m);
   const code = Number(data?.current?.weather_code ?? 1);
+  if (!Number.isFinite(temperature)) throw new Error("invalid weather data");
   const condition = weatherFromCode(code);
-  let location: string | null = null;
-
-  try {
-    const locationParams = new URLSearchParams({
-      latitude: String(latitude),
-      longitude: String(longitude),
-      localityLanguage: "ko",
-    });
-    const locationResponse = await fetch(
-      `https://api.bigdatacloud.net/data/reverse-geocode-client?${locationParams.toString()}`
-    );
-
-    if (locationResponse.ok) {
-      location = locationLabelFromData(await locationResponse.json());
-    }
-  } catch {
-    location = null;
-  }
+  const location = await fetchLocationLabel(latitude, longitude);
 
   return {
     status: "success" as const,
@@ -142,13 +213,30 @@ async function fetchApproximateCoordinates() {
     throw new Error("invalid fallback coordinates");
   }
 
-  return { latitude, longitude };
+  const location =
+    cleanLocationPart(data?.city) ??
+    cleanLocationPart(data?.region) ??
+    null;
+
+  return { latitude, longitude, location };
 }
 
 type RecommendItem = {
   category: string;
   name: string;
   searchKeyword: string;
+};
+
+const RECOMMENDATION_CACHE_KEY = "loodi_today_outfit_recommendation";
+const RECOMMENDATION_CATEGORY_ORDER: Record<string, number> = {
+  아우터: 0,
+  상의: 1,
+  원피스: 2,
+  하의: 3,
+  신발: 4,
+  가방: 5,
+  액세서리: 6,
+  모자: 7,
 };
 
 type RecommendationState =
@@ -159,8 +247,116 @@ type RecommendationState =
       reasoning: string;
       colors: string[];
       items: RecommendItem[];
+      createdAt: number;
     }
   | { status: "error"; message: string };
+
+function recommendationErrorMessage(message: string) {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("503") ||
+    lower.includes("unavailable") ||
+    lower.includes("high demand") ||
+    lower.includes("429") ||
+    lower.includes("quota") ||
+    lower.includes("resource_exhausted")
+  ) {
+    return "AI 추천 서버가 잠시 바쁩니다. 잠깐 후 다시 시도해 주세요.";
+  }
+
+  if (message.includes("{") || message.includes("Recommendation failed")) {
+    return "오늘 코디 추천을 불러오지 못했어요. 다시 시도해 주세요.";
+  }
+
+  return message || "추천을 불러오지 못했어요.";
+}
+
+function todayDateKey() {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function sortRecommendationItems(items: RecommendItem[]) {
+  return [...items].sort((a, b) => {
+    const aOrder = RECOMMENDATION_CATEGORY_ORDER[a.category] ?? 99;
+    const bOrder = RECOMMENDATION_CATEGORY_ORDER[b.category] ?? 99;
+    return aOrder - bOrder;
+  });
+}
+
+function formatRelativeTime(timestamp: number) {
+  const diffMs = Date.now() - timestamp;
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "방금 전";
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "방금 전";
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  return `${Math.floor(hours / 24)}일 전`;
+}
+
+function readCachedRecommendation(): RecommendationState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(RECOMMENDATION_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      date?: string;
+      reasoning?: unknown;
+      colors?: unknown;
+      items?: unknown;
+      createdAt?: unknown;
+    };
+    if (parsed.date !== todayDateKey()) return null;
+    if (
+      typeof parsed.reasoning !== "string" ||
+      !Array.isArray(parsed.colors) ||
+      !Array.isArray(parsed.items)
+    ) {
+      return null;
+    }
+
+    return {
+      status: "success",
+      reasoning: parsed.reasoning,
+      colors: parsed.colors.filter((color): color is string => typeof color === "string"),
+      createdAt:
+        typeof parsed.createdAt === "number" && Number.isFinite(parsed.createdAt)
+          ? parsed.createdAt
+          : Date.now(),
+      items: sortRecommendationItems(
+        parsed.items.filter((item): item is RecommendItem => {
+          if (!item || typeof item !== "object") return false;
+          const value = item as Partial<RecommendItem>;
+          return (
+            typeof value.category === "string" &&
+            typeof value.name === "string" &&
+            typeof value.searchKeyword === "string"
+          );
+        }),
+      ),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedRecommendation(recommendation: Extract<RecommendationState, { status: "success" }>) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    RECOMMENDATION_CACHE_KEY,
+    JSON.stringify({
+      date: todayDateKey(),
+      createdAt: recommendation.createdAt,
+      reasoning: recommendation.reasoning,
+      colors: recommendation.colors,
+      items: recommendation.items,
+    }),
+  );
+}
 
 export default function HomeTabPage() {
   const [weather, setWeather] = useState<WeatherState>({ status: "loading" });
@@ -173,12 +369,16 @@ export default function HomeTabPage() {
   useEffect(() => {
     const loadApproximateWeather = async () => {
       try {
-        const { latitude, longitude } = await fetchApproximateCoordinates();
-        setWeather(await fetchWeatherForCoordinates(latitude, longitude));
+        const { latitude, longitude, location } = await fetchApproximateCoordinates();
+        const approximateWeather = await fetchWeatherForCoordinates(latitude, longitude);
+        setWeather({
+          ...approximateWeather,
+          location: approximateWeather.location ?? location,
+        });
       } catch {
         setWeather({
           status: "error",
-          message: "Weather: 현재 위치를 찾지 못했어요",
+          message: "Weather: 위치 권한을 허용하면 더 정확히 잡을 수 있어요",
         });
       }
     };
@@ -203,7 +403,7 @@ export default function HomeTabPage() {
       () => {
         loadApproximateWeather();
       },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 10 * 60 * 1000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60 * 1000 }
     );
   }, []);
 
@@ -232,15 +432,16 @@ export default function HomeTabPage() {
     loadGender();
   }, []);
 
+  useEffect(() => {
+    const cached = readCachedRecommendation();
+    if (cached) setRecommendation(cached);
+  }, []);
+
   const fetchRecommendation = useCallback(async () => {
     setRecommendation({ status: "loading" });
     try {
       const all = readDiaryEntries();
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, "0");
-      const dd = String(today.getDate()).padStart(2, "0");
-      const todayKey = `${yyyy}-${mm}-${dd}`;
+      const todayKey = todayDateKey();
 
       const todayEntry = all.find((entry) => entry.date === todayKey && entry.photos[0]);
       const recent = all
@@ -289,14 +490,19 @@ export default function HomeTabPage() {
         recommendedItems: RecommendItem[];
       };
 
-      setRecommendation({
+      const nextRecommendation: RecommendationState = {
         status: "success",
         reasoning: data.reasoning,
         colors: data.recommendedColors,
-        items: data.recommendedItems,
-      });
+        items: sortRecommendationItems(data.recommendedItems),
+        createdAt: Date.now(),
+      };
+      setRecommendation(nextRecommendation);
+      writeCachedRecommendation(nextRecommendation);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "추천을 불러오지 못했어요.";
+      const message = recommendationErrorMessage(
+        err instanceof Error ? err.message : "추천을 불러오지 못했어요.",
+      );
       setRecommendation({ status: "error", message });
     }
   }, [gender, weather]);
@@ -304,6 +510,11 @@ export default function HomeTabPage() {
   useEffect(() => {
     if (weather.status === "loading") return;
     if (recommendation.status !== "idle") return;
+    const cached = readCachedRecommendation();
+    if (cached) {
+      setRecommendation(cached);
+      return;
+    }
     fetchRecommendation();
   }, [weather.status, recommendation.status, fetchRecommendation]);
 
@@ -366,7 +577,12 @@ export default function HomeTabPage() {
           ) : (
             <div className="space-y-3">
               <div className="rounded-2xl bg-soft p-4 text-sm text-primary">
-                <p className="font-medium">왜 이 코디?</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium">왜 이 코디?</p>
+                  <p className="shrink-0 text-xs text-primary/45">
+                    {formatRelativeTime(recommendation.createdAt)}
+                  </p>
+                </div>
                 <p className="mt-1 text-primary/75">{recommendation.reasoning}</p>
                 {recommendation.colors.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-1.5">
