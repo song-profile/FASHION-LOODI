@@ -219,6 +219,7 @@ export async function POST(req: Request) {
 
     throw new Error(lastTemporaryError ?? "Temporary model error");
   } catch (err) {
+    console.error("[analyze-outfit] failed:", err);
     const message = err instanceof Error ? err.message : "Unknown error";
     if (isTemporaryModelError(message)) {
       return NextResponse.json(

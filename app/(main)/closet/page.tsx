@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ChevronRight, MessageCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -231,6 +233,18 @@ export default function ClosetPage() {
               </div>
             </div>
           ) : null}
+
+          <Link
+            href="/contact"
+            className="mt-2 flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-3 text-sm text-primary transition hover:bg-soft"
+          >
+            <span className="flex items-center gap-2">
+              <MessageCircle size={16} className="text-accent" />
+              <span className="font-medium">문의하기</span>
+              <span className="text-xs text-primary/55">AI 챗봇</span>
+            </span>
+            <ChevronRight size={16} className="text-primary/40" />
+          </Link>
         </CardContent>
       </Card>
 

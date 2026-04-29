@@ -21,7 +21,7 @@ import {
   readDiaryEntries,
   type DiaryEntry,
 } from "@/lib/outfit-diary";
-import { buildMusinsaSearchUrl, genderToMusinsa } from "@/lib/musinsa";
+import { genderToShopping, platformsForGender } from "@/lib/shopping";
 import { supabase } from "@/lib/supabase";
 
 type WeatherState =
@@ -518,7 +518,8 @@ export default function HomeTabPage() {
     fetchRecommendation();
   }, [weather.status, recommendation.status, fetchRecommendation]);
 
-  const musinsaGender = genderToMusinsa(gender);
+  const shoppingGender = genderToShopping(gender);
+  const shoppingPlatforms = platformsForGender(shoppingGender);
 
   return (
     <div className="space-y-5">
@@ -597,26 +598,31 @@ export default function HomeTabPage() {
 
               <div className="space-y-2">
                 {recommendation.items.map((item, idx) => (
-                  <a
+                  <div
                     key={`${item.category}-${idx}`}
-                    href={buildMusinsaSearchUrl(item.searchKeyword, musinsaGender)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between rounded-2xl border border-border bg-white px-4 py-3 transition hover:border-accent"
+                    className="rounded-2xl border border-border bg-white px-4 py-3"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-medium text-primary/55">
-                        {item.category}
-                      </p>
-                      <p className="truncate text-sm font-medium text-primary">
-                        {item.name}
-                      </p>
+                    <p className="text-[11px] font-medium text-primary/55">
+                      {item.category}
+                    </p>
+                    <p className="truncate text-sm font-medium text-primary">
+                      {item.name}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {shoppingPlatforms.map((platform) => (
+                        <a
+                          key={platform.id}
+                          href={platform.buildUrl(item.searchKeyword, shoppingGender)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-full bg-soft px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-accent hover:text-white"
+                        >
+                          {platform.label}
+                          <ExternalLink size={11} />
+                        </a>
+                      ))}
                     </div>
-                    <div className="ml-3 flex items-center gap-1 text-xs text-accent">
-                      무신사
-                      <ExternalLink size={12} />
-                    </div>
-                  </a>
+                  </div>
                 ))}
               </div>
             </div>
