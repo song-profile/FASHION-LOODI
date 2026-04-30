@@ -23,6 +23,7 @@ type Analysis = {
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ANALYSIS_RETRY_DELAYS_MS = [2000, 4000, 6000, 8000, 10000, 12000];
 const weatherOptions = ["☀️", "☁️", "🌧️"];
+const temperatureOptions = Array.from({ length: 41 }, (_, index) => index - 10);
 const moodOptions = [
   { icon: "🙂", label: "보통" },
   { icon: "😎", label: "멋짐" },
@@ -73,6 +74,7 @@ export default function RecordPage() {
   const [analysisStatus, setAnalysisStatus] = useState("분석중입니다. 잠시만 기다려주세요");
   const [error, setError] = useState<string | null>(null);
   const [selectedWeather, setSelectedWeather] = useState(weatherOptions[0]);
+  const [selectedTemperature, setSelectedTemperature] = useState(18);
   const [selectedMood, setSelectedMood] = useState(moodOptions[0].icon);
   const [noteTitle, setNoteTitle] = useState("");
   const [noteBody, setNoteBody] = useState("");
@@ -310,21 +312,42 @@ export default function RecordPage() {
 
               <div>
                 <p className="mb-2 text-sm text-primary/70">Weather</p>
-                <div className="flex gap-2 text-xl">
-                  {weatherOptions.map((weather) => (
-                    <button
-                      key={weather}
-                      type="button"
-                      onClick={() => setSelectedWeather(weather)}
-                      className={
-                        selectedWeather === weather
-                          ? "rounded-xl bg-soft px-2 py-1 ring-2 ring-accent"
-                          : "rounded-xl px-2 py-1"
+                <div className="space-y-3 rounded-2xl border border-border bg-white p-3">
+                  <div className="flex gap-2 text-xl">
+                    {weatherOptions.map((weather) => (
+                      <button
+                        key={weather}
+                        type="button"
+                        onClick={() => setSelectedWeather(weather)}
+                        className={
+                          selectedWeather === weather
+                            ? "rounded-xl bg-soft px-2 py-1 ring-2 ring-accent"
+                            : "rounded-xl px-2 py-1"
+                        }
+                      >
+                        {weather}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-primary">
+                      {selectedTemperature}°C
+                    </span>
+                    <select
+                      value={selectedTemperature}
+                      onChange={(event) =>
+                        setSelectedTemperature(Number(event.target.value))
                       }
+                      className="h-10 flex-1 rounded-xl border border-border bg-card px-3 text-sm text-primary outline-none"
+                      aria-label="기온 선택"
                     >
-                      {weather}
-                    </button>
-                  ))}
+                      {temperatureOptions.map((temperature) => (
+                        <option key={temperature} value={temperature}>
+                          {temperature}°C
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -378,7 +401,7 @@ export default function RecordPage() {
                       date: formatDateKey(new Date()),
                       photos: [compressed],
                       title: noteTitle.trim() || "Untitled Outfit",
-                      weather: selectedWeather,
+                      weather: `${selectedWeather} ${selectedTemperature}°C`,
                       mood: selectedMood,
                       items: analysis?.items ?? [],
                       colors: analysis?.colors ?? [],

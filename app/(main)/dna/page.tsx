@@ -50,6 +50,36 @@ function topEntries(map: Map<string, number>, limit = 6) {
     .slice(0, limit);
 }
 
+function percentageEntries(entries: Array<[string, number]>) {
+  const total = entries.reduce((sum, [, value]) => sum + value, 0);
+  if (total <= 0) {
+    return entries.map(([label, count]) => ({ label, count, percentage: 0 }));
+  }
+
+  const calculated = entries.map(([label, count]) => {
+    const exact = (count / total) * 100;
+    return {
+      label,
+      count,
+      percentage: Math.floor(exact),
+      remainder: exact % 1,
+    };
+  });
+
+  let remaining = 100 - calculated.reduce((sum, item) => sum + item.percentage, 0);
+  for (const item of [...calculated].sort((a, b) => b.remainder - a.remainder)) {
+    if (remaining <= 0) break;
+    item.percentage += 1;
+    remaining -= 1;
+  }
+
+  return calculated.map(({ label, count, percentage }) => ({
+    label,
+    count,
+    percentage,
+  }));
+}
+
 function scoreEntryStyles(entry: DiaryEntry) {
   const text = [
     ...(entry.tags ?? []),
@@ -76,11 +106,6 @@ function scoreEntryStyles(entry: DiaryEntry) {
   }
 
   return scores;
-}
-
-function percent(value: number, total: number) {
-  if (total <= 0) return 0;
-  return Math.round((value / total) * 100);
 }
 
 function monthLabel(dateKey: string) {
@@ -128,13 +153,12 @@ export default function StyleDnaPage() {
       monthlyStyles.set(month, monthMap);
     }
 
-    const styleTotal = [...styleScores.values()].reduce((sum, value) => sum + value, 0);
-    const styles = topEntries(styleScores).map(([label, count], index) => ({
-      label,
-      count,
-      percentage: percent(count, styleTotal),
+    const styles = percentageEntries(topEntries(styleScores)).map((style, index) => ({
+      label: style.label,
+      count: style.count,
+      percentage: style.percentage,
       color:
-        STYLE_KEYWORDS.find((style) => style.label === label)?.color ??
+        STYLE_KEYWORDS.find((keyword) => keyword.label === style.label)?.color ??
         ["#8B6E5A", "#1A1A2E", "#C4AB82", "#5A7D8B", "#935A6E"][index % 5],
     }));
 

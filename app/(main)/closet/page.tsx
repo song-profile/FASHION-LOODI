@@ -3,7 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChevronRight, MessageCircle } from "lucide-react";
+import {
+  ChevronRight,
+  Footprints,
+  Layers,
+  MessageCircle,
+  PanelBottom,
+  Shirt,
+  Watch,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +39,13 @@ const closetCategories = [
 ] as const;
 
 type ClosetCategory = (typeof closetCategories)[number];
+
+const closetCategoryIcons: Record<ClosetCategory, LucideIcon> = {
+  Outerwear: Layers,
+  Tops: Shirt,
+  Bottoms: PanelBottom,
+  "Shoes & Accessories": Footprints,
+};
 
 function normalizeItemCategory(category: string, name: string): ClosetCategory {
   const text = `${category} ${name}`.toLowerCase();
@@ -251,7 +267,17 @@ export default function ClosetPage() {
       {recordedCloset.map((group) => (
         <Card key={group.category}>
           <CardHeader>
-            <CardTitle>{group.category}</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              {(() => {
+                const Icon = closetCategoryIcons[group.category as ClosetCategory] ?? Watch;
+                return (
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-soft text-primary">
+                    <Icon size={17} strokeWidth={1.9} />
+                  </span>
+                );
+              })()}
+              {group.category}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {group.items.length > 0 ? (

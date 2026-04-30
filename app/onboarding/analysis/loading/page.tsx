@@ -28,12 +28,32 @@ const stageLabels = [
   "Diary-ready summary",
 ];
 
+const loadingTips = [
+  {
+    title: "LOODI 사용 팁",
+    body: "사진은 밝은 곳에서 전신이 보이게 찍을수록 아이템과 색상을 더 안정적으로 잡아요.",
+  },
+  {
+    title: "패션 팁",
+    body: "아우터와 신발 색을 맞추면 전체 룩이 더 정돈되어 보입니다.",
+  },
+  {
+    title: "기록 팁",
+    body: "날씨와 기분을 함께 남기면 나중에 비슷한 날의 코디 추천이 더 좋아져요.",
+  },
+  {
+    title: "Style DNA",
+    body: "사진 기록이 쌓일수록 자주 입는 색상, 실루엣, 무드가 자동으로 정리됩니다.",
+  },
+];
+
 export default function AnalysisLoadingPage() {
   const router = useRouter();
   const [statuses, setStatuses] = useState<StageStatus[]>(
     stageLabels.map((_, idx) => (idx === 0 ? "analyzing" : "waiting")),
   );
   const [showReassure, setShowReassure] = useState(false);
+  const [tipIndex, setTipIndex] = useState(0);
 
   const allCompleted = useMemo(
     () => statuses.every((status) => status === "completed"),
@@ -47,6 +67,13 @@ export default function AnalysisLoadingPage() {
   useEffect(() => {
     const reassureTimer = window.setTimeout(() => setShowReassure(true), 5500);
     return () => window.clearTimeout(reassureTimer);
+  }, []);
+
+  useEffect(() => {
+    const tipTimer = window.setInterval(() => {
+      setTipIndex((current) => (current + 1) % loadingTips.length);
+    }, 4200);
+    return () => window.clearInterval(tipTimer);
   }, []);
 
   useEffect(() => {
@@ -199,6 +226,21 @@ export default function AnalysisLoadingPage() {
               결과 정확도를 위해 조금 더 꼼꼼히 확인하고 있어요. 잠시만 기다려 주세요.
             </p>
           ) : null}
+
+          <motion.div
+            key={tipIndex}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28 }}
+            className="mt-5 rounded-2xl border border-border bg-soft/70 p-4"
+          >
+            <p className="text-xs font-semibold text-primary">
+              {loadingTips[tipIndex].title}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-primary/65">
+              {loadingTips[tipIndex].body}
+            </p>
+          </motion.div>
         </section>
       </div>
     </main>

@@ -373,7 +373,7 @@ export default function OutfitUploadPage() {
         ) : null}
 
         <section className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-primary/50">
             Emotion Tags
           </p>
           <div className="flex flex-wrap gap-2">
@@ -402,7 +402,7 @@ export default function OutfitUploadPage() {
         </section>
 
         <section className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-primary/50">
             TPO Tags
           </p>
           <div className="flex flex-wrap gap-2">
