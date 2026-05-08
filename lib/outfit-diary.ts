@@ -13,6 +13,7 @@ export type DiaryEntry = {
   photos: DiaryPhoto[];
   title?: string;
   weather?: string;
+  temperature?: number;
   mood?: string;
   items?: DiaryAnalyzedItem[];
   colors?: string[];
@@ -113,4 +114,70 @@ export function updateDiaryEntry(
 
 export function diaryPhotoToDataUrl(photo: DiaryPhoto): string {
   return `data:${photo.mediaType};base64,${photo.base64}`;
+}
+
+export function computeStreakDays(entries: DiaryEntry[]): number {
+  if (entries.length === 0) return 0;
+  const dateSet = new Set(entries.map((entry) => entry.date));
+
+  const today = new Date();
+  let streak = 0;
+  const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // Allow today to be empty: start from yesterday if today missing.
+  if (!dateSet.has(formatDateKey(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  while (dateSet.has(formatDateKey(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+export type StreakLevel = {
+  level: number;
+  totalEntries: number;
+  streak: number;
+  nextLevelAt: number;
+  remaining: number;
+  perks: { current: string; next: string };
+};
+
+const LEVEL_PERKS = [
+  { entries: 0, current: "오늘부터 LOODI와 함께", next: "AI 추천 횟수 +1" },
+  { entries: 3, current: "AI 추천 1일 3회", next: "AI 추천 1일 5회 + 컬러 팔레트 잠금 해제" },
+  { entries: 7, current: "AI 추천 1일 5회 · 컬러 팔레트", next: "스타일 DNA 그래프 + 무드 인사이트" },
+  { entries: 14, current: "스타일 DNA + 무드 인사이트", next: "월간 코디 리포트 PDF" },
+  { entries: 30, current: "월간 리포트 · 모든 기능 해제", next: "최고 레벨 달성!" },
+];
+
+export function computeStreakLevel(entries: DiaryEntry[]): StreakLevel {
+  const total = entries.length;
+  const streak = computeStreakDays(entries);
+
+  let level = 1;
+  for (let i = LEVEL_PERKS.length - 1; i >= 0; i -= 1) {
+    if (total >= LEVEL_PERKS[i].entries) {
+      level = i + 1;
+      break;
+    }
+  }
+
+  const nextIdx = Math.min(level, LEVEL_PERKS.length - 1);
+  const nextLevelAt = LEVEL_PERKS[nextIdx]?.entries ?? LEVEL_PERKS[LEVEL_PERKS.length - 1].entries;
+  const remaining = Math.max(0, nextLevelAt - total);
+
+  return {
+    level,
+    totalEntries: total,
+    streak,
+    nextLevelAt,
+    remaining,
+    perks: {
+      current: LEVEL_PERKS[level - 1].current,
+      next: LEVEL_PERKS[level - 1].next,
+    },
+  };
 }

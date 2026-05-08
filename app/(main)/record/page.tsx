@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { compressImageForUpload } from "@/lib/onboarding-analysis-images";
 import { appendDiaryEntry, formatDateKey } from "@/lib/outfit-diary";
+import { FashionTipsLoader } from "@/components/blocks/fashion-tips-loader";
 
 type AnalyzedItem = { category: string; name: string };
 type Analysis = {
@@ -255,6 +256,7 @@ export default function RecordPage() {
                     ? error
                     : "AI analysis complete"}
               </p>
+              {analyzing ? <FashionTipsLoader /> : null}
               {imagePreviewUrl ? (
                 <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-soft">
                   <Image
@@ -402,6 +404,7 @@ export default function RecordPage() {
                       photos: [compressed],
                       title: noteTitle.trim() || "Untitled Outfit",
                       weather: `${selectedWeather} ${selectedTemperature}°C`,
+                      temperature: selectedTemperature,
                       mood: selectedMood,
                       items: analysis?.items ?? [],
                       colors: analysis?.colors ?? [],

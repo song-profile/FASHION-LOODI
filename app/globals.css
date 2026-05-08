@@ -5,50 +5,54 @@
 @tailwind utilities;
 
 :root {
-  --background: 36 38% 92%;
-  --foreground: 24 30% 18%;
-  --card: 36 38% 96%;
-  --card-foreground: 24 30% 18%;
-  --popover: 36 38% 96%;
-  --popover-foreground: 24 30% 18%;
-  --primary: 24 30% 18%;
-  --primary-foreground: 36 38% 96%;
-  --secondary: 36 30% 88%;
-  --secondary-foreground: 24 30% 18%;
-  --muted: 35 20% 82%;
-  --muted-foreground: 25 11% 43%;
-  --soft: 36 38% 92%;
-  --accent: 26 30% 32%;
-  --accent-foreground: 36 38% 96%;
+  --background: 295 25% 98%;
+  --foreground: 295 30% 18%;
+  --card: 295 25% 99%;
+  --card-foreground: 295 30% 18%;
+  --popover: 295 25% 99%;
+  --popover-foreground: 295 30% 18%;
+  --primary: 295 30% 18%;
+  --primary-foreground: 295 25% 99%;
+  --secondary: 295 18% 92%;
+  --secondary-foreground: 295 30% 18%;
+  --muted: 295 14% 88%;
+  --muted-foreground: 295 8% 44%;
+  --soft: 295 22% 94%;
+  --accent: 295 25% 55%;
+  --accent-foreground: 295 25% 99%;
   --destructive: 6 78% 57%;
-  --destructive-foreground: 36 38% 96%;
-  --border: 33 18% 82%;
-  --input: 33 18% 82%;
-  --ring: 89 18% 47%;
+  --destructive-foreground: 295 25% 99%;
+  --border: 295 16% 88%;
+  --input: 295 16% 88%;
+  --ring: 295 25% 55%;
+  --highlight: 95 38% 42%;
+  --highlight-foreground: 0 0% 100%;
   --radius: 0.75rem;
 }
 
 .dark {
-  --background: 24 30% 12%;
-  --foreground: 36 38% 92%;
-  --card: 24 25% 16%;
-  --card-foreground: 36 38% 92%;
-  --popover: 24 25% 16%;
-  --popover-foreground: 36 38% 92%;
-  --primary: 36 38% 92%;
-  --primary-foreground: 24 30% 18%;
-  --secondary: 25 22% 22%;
-  --secondary-foreground: 36 38% 92%;
-  --muted: 25 18% 26%;
-  --muted-foreground: 36 18% 72%;
-  --soft: 25 18% 22%;
-  --accent: 26 30% 42%;
-  --accent-foreground: 36 38% 96%;
+  --background: 295 22% 10%;
+  --foreground: 295 18% 96%;
+  --card: 295 20% 13%;
+  --card-foreground: 295 18% 96%;
+  --popover: 295 20% 13%;
+  --popover-foreground: 295 18% 96%;
+  --primary: 295 18% 96%;
+  --primary-foreground: 295 30% 18%;
+  --secondary: 295 16% 20%;
+  --secondary-foreground: 295 18% 96%;
+  --muted: 295 14% 22%;
+  --muted-foreground: 295 10% 72%;
+  --soft: 295 16% 20%;
+  --accent: 295 35% 68%;
+  --accent-foreground: 295 25% 99%;
   --destructive: 0 63% 45%;
-  --destructive-foreground: 36 38% 96%;
-  --border: 25 15% 28%;
-  --input: 25 15% 28%;
-  --ring: 89 18% 47%;
+  --destructive-foreground: 295 25% 99%;
+  --border: 295 12% 26%;
+  --input: 295 12% 26%;
+  --ring: 295 35% 68%;
+  --highlight: 85 30% 65%;
+  --highlight-foreground: 85 30% 12%;
 }
 
 * {
@@ -62,10 +66,24 @@
 
   body {
     @apply bg-background text-foreground;
+    font-size: 16px;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+  }
+
+  h1 {
+    @apply text-[1.7rem] font-semibold leading-[1.2] tracking-tight;
+  }
+  h2 {
+    @apply text-[1.35rem] font-semibold leading-[1.25] tracking-tight;
+  }
+  h3 {
+    @apply text-[1.1rem] font-semibold leading-snug;
   }
 }
 
 body {
   margin: 0;
   font-family: "Pretendard", "Inter", sans-serif;
+  font-weight: 450;
 }

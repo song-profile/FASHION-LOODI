@@ -21,8 +21,8 @@ export function OnboardingShell({
 }: OnboardingShellProps) {
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-md overflow-hidden px-4 py-8">
-      <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-[#f8b3c4]/25 blur-3xl" />
-      <div className="pointer-events-none absolute -right-20 top-40 h-64 w-64 rounded-full bg-[#f2dfc5]/35 blur-3xl" />
+      <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-[#b894b8]/30 blur-3xl" />
+      <div className="pointer-events-none absolute -right-20 top-40 h-64 w-64 rounded-full bg-[#d8c4d8]/40 blur-3xl" />
 
       <div className="relative space-y-6">
         <OnboardingProgress step={step} total={total} />

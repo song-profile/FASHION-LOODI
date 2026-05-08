@@ -124,7 +124,7 @@ export default function ColorOnboardingPage() {
                 className={cn(
                   "flex min-h-20 items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-all",
                   active
-                    ? "border-accent/45 ring-1 ring-accent/35 shadow-[0_8px_28px_rgba(74,51,39,0.12)]"
+                    ? "border-accent/45 ring-1 ring-accent/35 shadow-[0_8px_28px_rgba(80,50,130,0.14)]"
                     : "border-border",
                   capped && "opacity-55"
                 )}

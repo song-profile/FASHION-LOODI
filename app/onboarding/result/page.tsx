@@ -193,7 +193,7 @@ export default function OnboardingResultPage() {
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/80 bg-white/95 px-4 py-4 backdrop-blur">
         <div className="mx-auto w-full max-w-md space-y-2">
           <Button
-            className="h-11 w-full bg-[#C29A73] text-white hover:bg-[#B18C67]"
+            className="h-11 w-full bg-accent text-white hover:bg-accent/90"
             onClick={handleComplete}
             disabled={saving}
           >
@@ -219,7 +219,7 @@ export default function OnboardingResultPage() {
           ? Array.from({ length: 18 }).map((_, idx) => (
               <motion.span
                 key={`confetti-${idx}`}
-                className="absolute h-1.5 w-1.5 rounded-full bg-[#C29A73]/70"
+                className="absolute h-1.5 w-1.5 rounded-full bg-accent/70"
                 initial={{
                   x: `${12 + ((idx * 5) % 76)}%`,
                   y: "-8%",

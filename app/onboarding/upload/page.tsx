@@ -336,7 +336,7 @@ export default function OutfitUploadPage() {
 
         {images.length > 0 ? (
           <section className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
+            <p className="text-xs font-medium uppercase tracking-[0.04em] text-primary/50">
               Uploaded
             </p>
             <div className="grid grid-cols-3 gap-2">
@@ -373,7 +373,7 @@ export default function OutfitUploadPage() {
         ) : null}
 
         <section className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-primary/50">
+          <p className="text-xs font-medium uppercase tracking-[0.04em] text-primary/50">
             Emotion Tags
           </p>
           <div className="flex flex-wrap gap-2">
@@ -402,7 +402,7 @@ export default function OutfitUploadPage() {
         </section>
 
         <section className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-primary/50">
+          <p className="text-xs font-medium uppercase tracking-[0.04em] text-primary/50">
             TPO Tags
           </p>
           <div className="flex flex-wrap gap-2">
@@ -454,7 +454,7 @@ export default function OutfitUploadPage() {
         </section>
 
         <section className="space-y-2">
-          <label htmlFor="memo" className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
+          <label htmlFor="memo" className="text-xs font-medium uppercase tracking-[0.04em] text-primary/50">
             Memo (Optional)
           </label>
           <input

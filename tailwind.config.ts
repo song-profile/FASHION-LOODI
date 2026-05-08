@@ -44,6 +44,10 @@ const config: Config = {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        highlight: {
+          DEFAULT: "hsl(var(--highlight))",
+          foreground: "hsl(var(--highlight-foreground))",
+        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
@@ -54,7 +58,7 @@ const config: Config = {
         },
       },
       boxShadow: {
-        soft: "0 10px 30px rgba(74, 51, 39, 0.08)",
+        soft: "0 10px 30px rgba(140, 100, 140, 0.12)",
       },
       borderRadius: {
         lg: "var(--radius)",

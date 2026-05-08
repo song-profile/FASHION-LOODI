@@ -16,12 +16,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  computeStreakLevel,
   diaryPhotoToDataUrl,
   readDiaryEntries,
   type DiaryEntry,
+  type StreakLevel,
 } from "@/lib/outfit-diary";
 import { genderToShopping, platformsForGender } from "@/lib/shopping";
 import { supabase } from "@/lib/supabase";
+import { FashionTipsLoader } from "@/components/blocks/fashion-tips-loader";
 
 const STYLE_KEYWORDS = [
   {
@@ -464,6 +467,7 @@ export default function HomeTabPage() {
   const [weather, setWeather] = useState<WeatherState>({ status: "loading" });
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
   const [recentEntries, setRecentEntries] = useState<DiaryEntry[]>([]);
+  const [streakLevel, setStreakLevel] = useState<StreakLevel | null>(null);
   const [gender, setGender] = useState<string>("선택 안 함");
   const [recommendation, setRecommendation] = useState<RecommendationState>({
     status: "idle",
@@ -512,9 +516,10 @@ export default function HomeTabPage() {
 
   useEffect(() => {
     const loadRecentEntries = () => {
-      const entries = readDiaryEntries();
-      setDiaryEntries(entries);
-      setRecentEntries(entries.filter((entry) => entry.photos[0]).slice(0, 3));
+      const all = readDiaryEntries();
+      setDiaryEntries(all);
+      setRecentEntries(all.filter((entry) => entry.photos[0]).slice(0, 3));
+      setStreakLevel(computeStreakLevel(all));
     };
 
     loadRecentEntries();
@@ -669,26 +674,66 @@ export default function HomeTabPage() {
 
   return (
     <div className="space-y-5">
-      <header className="space-y-2">
-        <p className="text-xs font-medium text-primary/60">LOODI</p>
-        <div className="rounded-3xl bg-primary p-5 text-white shadow-soft">
-          <p className="text-xs font-medium text-white/65">TODAY STYLE FLOW</p>
-          <div className="mt-2 flex items-center gap-2 text-lg font-semibold">
-            <span>Record</span>
-            <ArrowRight size={16} className="text-white/55" />
-            <span>Insight</span>
-            <ArrowRight size={16} className="text-white/55" />
-            <span>Reward</span>
+      <header className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-accent text-white shadow-soft">
+            <Sparkles size={18} />
+          </span>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">LOODI</h1>
+        </div>
+        {streakLevel ? (
+          <div className="flex flex-wrap gap-2">
+            <Badge className="gap-1 border border-highlight/15 bg-white text-primary">
+              <Flame size={13} className="text-highlight" />
+              {streakLevel.streak} Day Streak
+            </Badge>
+            <Badge className="gap-1 bg-highlight text-white">
+              <Trophy size={13} />
+              Level {streakLevel.level}
+            </Badge>
           </div>
-          <p className="mt-2 text-xs leading-relaxed text-white/70">
-            오늘의 착장을 남기면 사진 기반 분석과 추천이 함께 쌓입니다.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Badge className="gap-1"><Flame size={12} /> 3 Day Style Streak</Badge>
-          <Badge className="gap-1"><Trophy size={12} /> Level 3</Badge>
-        </div>
+        ) : null}
       </header>
+
+      {streakLevel ? (
+        <Card className="border-highlight/15 bg-white">
+          <CardContent className="space-y-3 pt-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-primary/55">
+                  현재 혜택
+                </p>
+                <p className="text-sm font-semibold text-primary">{streakLevel.perks.current}</p>
+              </div>
+              <Trophy size={20} className="flex-shrink-0 text-highlight" />
+            </div>
+            {streakLevel.remaining > 0 ? (
+              <>
+                <div className="h-1.5 overflow-hidden rounded-full bg-soft">
+                  <div
+                    className="h-full rounded-full bg-highlight transition-all"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.round(
+                          (streakLevel.totalEntries / Math.max(1, streakLevel.nextLevelAt)) * 100,
+                        ),
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-primary/70">
+                  <span className="font-semibold text-accent">{streakLevel.remaining}일</span> 더
+                  기록하면 Level {streakLevel.level + 1} 해제 →{" "}
+                  <span className="font-medium text-primary">{streakLevel.perks.next}</span>
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-primary/70">최고 레벨 달성! 새로운 혜택을 준비 중이에요.</p>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader className="flex-row items-center justify-between">
@@ -718,8 +763,11 @@ export default function HomeTabPage() {
           </p>
 
           {recommendation.status === "loading" || recommendation.status === "idle" ? (
-            <div className="rounded-2xl bg-soft p-4 text-sm text-primary/70">
-              오늘 어울릴 코디를 분석 중...
+            <div className="space-y-2">
+              <div className="rounded-2xl bg-soft p-4 text-sm text-primary/70">
+                오늘 어울릴 코디를 분석 중...
+              </div>
+              <FashionTipsLoader />
             </div>
           ) : recommendation.status === "error" ? (
             <div className="rounded-2xl bg-soft p-4 text-sm text-primary/70">

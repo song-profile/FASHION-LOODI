@@ -138,7 +138,7 @@ export default function StyleOnboardingPage() {
                   "w-full cursor-pointer rounded-3xl border bg-card/90 px-4 py-4 text-left backdrop-blur-sm transition-all",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                   active
-                    ? "border-accent/45 shadow-[0_10px_32px_rgba(74,51,39,0.12)] ring-1 ring-accent/30"
+                    ? "border-accent/45 shadow-[0_10px_32px_rgba(80,50,130,0.14)] ring-1 ring-accent/30"
                     : "border-border/90 hover:border-accent/25 hover:bg-card"
                 )}
               >

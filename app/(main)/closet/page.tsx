@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ComponentType, type SVGProps } from "react";
-import {
-  ChevronRight,
-  Footprints,
-  MessageCircle,
-  Shirt,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronRight, MessageCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  BottomsIcon,
+  OuterwearIcon,
+  ShoesIcon,
+  TopsIcon,
+} from "@/components/icons/category-icons";
 import { readDiaryEntries } from "@/lib/outfit-diary";
 import { supabase } from "@/lib/supabase";
 
@@ -36,55 +37,11 @@ const closetCategories = [
 
 type ClosetCategory = (typeof closetCategories)[number];
 
-type ClosetIcon = ComponentType<SVGProps<SVGSVGElement>>;
-
-function OuterwearIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <path
-        d="M8.5 4.5 12 6l3.5-1.5 3 3.25v11.5h-5V12.5h-3v6.75h-5V7.75l3-3.25Z"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8.5 4.5v5.75M15.5 4.5v5.75M12 6v12.75"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function PantsIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <path
-        d="M8 4h8l1.25 16H13l-1-9-1 9H6.75L8 4Z"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8.25 7h7.5M12 4v7"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-const closetCategoryIcons: Record<ClosetCategory, ClosetIcon> = {
+const categoryIcons: Record<ClosetCategory, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
   Outerwear: OuterwearIcon,
-  Tops: Shirt,
-  Bottoms: PantsIcon,
-  "Shoes & Accessories": Footprints,
+  Tops: TopsIcon,
+  Bottoms: BottomsIcon,
+  "Shoes & Accessories": ShoesIcon,
 };
 
 function normalizeItemCategory(category: string, name: string): ClosetCategory {
@@ -304,18 +261,17 @@ export default function ClosetPage() {
         </CardContent>
       </Card>
 
-      {recordedCloset.map((group) => (
+      {recordedCloset.map((group) => {
+        const Icon = categoryIcons[group.category as ClosetCategory];
+        return (
         <Card key={group.category}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              {(() => {
-                const Icon = closetCategoryIcons[group.category as ClosetCategory];
-                return (
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-soft text-primary">
-                    <Icon className="h-[18px] w-[18px]" />
-                  </span>
-                );
-              })()}
+              {Icon ? (
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-soft text-accent">
+                  <Icon className="h-[18px] w-[18px]" />
+                </span>
+              ) : null}
               {group.category}
             </CardTitle>
           </CardHeader>
@@ -339,7 +295,8 @@ export default function ClosetPage() {
             )}
           </CardContent>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }
