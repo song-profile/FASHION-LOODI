@@ -1,5 +1,7 @@
 "use client";
 
+import { scopedLocalStorageKey } from "@/lib/user-storage";
+
 const STORAGE_KEY = "loodi_outfit_diary";
 
 export type DiaryPhoto = { base64: string; mediaType: string };
@@ -36,7 +38,7 @@ export function formatDateKey(date: Date): string {
 export function readDiaryEntries(): DiaryEntry[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(scopedLocalStorageKey(STORAGE_KEY));
     if (!raw) return [];
     const entries = JSON.parse(raw) as DiaryEntry[];
     return entries.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
@@ -60,7 +62,7 @@ export function appendDiaryEntry(
   try {
     const existing = readDiaryEntries();
     const next = [entry, ...existing];
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    window.localStorage.setItem(scopedLocalStorageKey(STORAGE_KEY), JSON.stringify(next));
     return entry;
   } catch (err) {
     console.error("Failed to persist diary entry", err);
@@ -78,7 +80,7 @@ export function deleteDiaryEntry(id: string): boolean {
     const entries = readDiaryEntries();
     const next = entries.filter((entry) => entry.id !== id);
     if (next.length === entries.length) return false;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    window.localStorage.setItem(scopedLocalStorageKey(STORAGE_KEY), JSON.stringify(next));
     return true;
   } catch (err) {
     console.error("Failed to delete diary entry", err);
@@ -104,7 +106,7 @@ export function updateDiaryEntry(
       return updated;
     });
     if (!updated) return null;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    window.localStorage.setItem(scopedLocalStorageKey(STORAGE_KEY), JSON.stringify(next));
     return updated;
   } catch (err) {
     console.error("Failed to update diary entry", err);

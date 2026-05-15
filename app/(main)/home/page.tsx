@@ -9,7 +9,6 @@ import {
   Trophy,
   RefreshCw,
   ExternalLink,
-  ArrowRight,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";

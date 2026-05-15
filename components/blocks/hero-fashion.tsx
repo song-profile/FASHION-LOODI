@@ -14,6 +14,7 @@ import {
   writeOnboardingLocalState,
 } from "@/lib/onboarding-persistence";
 import { supabase } from "@/lib/supabase";
+import { setCurrentUserStorageId } from "@/lib/user-storage";
 import { cn } from "@/lib/utils";
 
 const valueCards = [
@@ -85,7 +86,12 @@ export default function HomePage() {
   const [authOpen, setAuthOpen] = useState(false);
   const [isSubmittingLogin, setIsSubmittingLogin] = useState(false);
   const [isSubmittingGoogle, setIsSubmittingGoogle] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showLoginError, setShowLoginError] = useState(false);
+  const [loginErrorMessage, setLoginErrorMessage] = useState(
+    "로그인에 실패했어요. 이메일 또는 비밀번호를 다시 확인해 주세요."
+  );
   const [resumeRoute, setResumeRoute] = useState<string | null>(null);
   const [showResume, setShowResume] = useState(false);
 
@@ -100,8 +106,10 @@ export default function HomePage() {
       const user = data.session?.user;
 
       if (!user) return;
+      setCurrentUserStorageId(user.id);
 
       const metadata = user.user_metadata ?? {};
+      const completedOnboarding = metadata.onboarding_completed === true;
       const hasProfile =
         typeof metadata.full_name === "string" &&
         metadata.full_name.trim().length > 0 &&
@@ -110,9 +118,16 @@ export default function HomePage() {
         typeof metadata.birth_date === "string" &&
         metadata.birth_date.trim().length > 0;
 
-      router.replace(
-        hasProfile ? "/home" : "/profile/setup?next=%2Fhome"
-      );
+      if (!hasProfile) {
+        router.replace(
+          `/profile/setup?next=${encodeURIComponent(
+            completedOnboarding ? "/home" : "/onboarding/style"
+          )}`
+        );
+        return;
+      }
+
+      router.replace(completedOnboarding ? "/home" : "/onboarding/style");
     };
 
     redirectSignedInUser();
@@ -136,13 +151,58 @@ export default function HomePage() {
     setAuthOpen(true);
   };
 
-  const handleMockLoginFail = () => {
-    setIsSubmittingLogin(true);
-    window.setTimeout(() => {
-      setIsSubmittingLogin(false);
+  const routeAfterEmailLogin = async () => {
+    const { data } = await supabase.auth.getUser();
+    if (data.user) setCurrentUserStorageId(data.user.id);
+    const metadata = data.user?.user_metadata ?? {};
+    const completedOnboarding = metadata.onboarding_completed === true;
+    const hasProfile =
+      typeof metadata.full_name === "string" &&
+      metadata.full_name.trim().length > 0 &&
+      typeof metadata.gender === "string" &&
+      metadata.gender.trim().length > 0 &&
+      typeof metadata.birth_date === "string" &&
+      metadata.birth_date.trim().length > 0;
+
+    if (!hasProfile) {
+      router.replace(
+        `/profile/setup?next=${encodeURIComponent(
+          completedOnboarding ? "/home" : "/onboarding/style"
+        )}`
+      );
+      return;
+    }
+
+    router.replace(completedOnboarding ? "/home" : "/onboarding/style");
+  };
+
+  const handleEmailLogin = async () => {
+    if (!email.trim() || !password) {
+      setLoginErrorMessage("이메일과 비밀번호를 입력해 주세요.");
       setShowLoginError(true);
       window.setTimeout(() => setShowLoginError(false), 2600);
-    }, 700);
+      return;
+    }
+
+    setIsSubmittingLogin(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    setIsSubmittingLogin(false);
+
+    if (error) {
+      setLoginErrorMessage(
+        "로그인에 실패했어요. 이메일 또는 비밀번호를 다시 확인해 주세요."
+      );
+      setShowLoginError(true);
+      window.setTimeout(() => setShowLoginError(false), 2600);
+      return;
+    }
+
+    await routeAfterEmailLogin();
   };
 
   const handleGoogleLogin = async () => {
@@ -266,7 +326,7 @@ export default function HomePage() {
           <Button
             variant="outline"
             className="h-11 w-full border-border bg-card text-primary"
-            onClick={() => router.push("/onboarding/style")}
+            onClick={() => router.push("/signup")}
           >
             시작하기
           </Button>
@@ -325,20 +385,38 @@ export default function HomePage() {
                   </button>
                 </div>
 
-                <Button
-                  variant="outline"
-                  className="h-11 w-full"
-                  onClick={handleMockLoginFail}
-                  disabled={isSubmittingLogin}
-                >
-                  {isSubmittingLogin ? "로그인 중..." : "이메일로 로그인"}
-                </Button>
+                <div className="space-y-2">
+                  <input
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-border/80 bg-white px-4 text-sm text-primary outline-none transition focus:border-accent"
+                    placeholder="이메일"
+                    type="email"
+                    autoComplete="email"
+                  />
+                  <input
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-border/80 bg-white px-4 text-sm text-primary outline-none transition focus:border-accent"
+                    placeholder="비밀번호"
+                    type="password"
+                    autoComplete="current-password"
+                  />
+                  <Button
+                    variant="outline"
+                    className="h-11 w-full"
+                    onClick={handleEmailLogin}
+                    disabled={isSubmittingLogin}
+                  >
+                    {isSubmittingLogin ? "로그인 중..." : "이메일로 로그인"}
+                  </Button>
+                </div>
 
                 <button
                   type="button"
                   onClick={() => {
                     setAuthOpen(false);
-                    router.push("/onboarding/style");
+                    router.push("/signup");
                   }}
                   className="w-full text-center text-sm text-primary/70 underline-offset-4 hover:underline"
                 >
@@ -361,7 +439,7 @@ export default function HomePage() {
               "fixed left-1/2 top-4 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow"
             )}
           >
-            로그인에 실패했어요. 이메일 또는 비밀번호를 다시 확인해 주세요.
+            {loginErrorMessage}
           </motion.div>
         ) : null}
       </AnimatePresence>

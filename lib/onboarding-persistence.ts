@@ -140,11 +140,11 @@ export function stepToRoute(step: OnboardingStepId) {
     case "survey_fit":
       return "/onboarding/fit";
     case "upload":
-      return "/onboarding/upload";
+      return "/home";
     case "analysis_loading":
-      return "/onboarding/analysis/loading";
+      return "/home";
     case "analysis_result":
-      return "/onboarding/analysis/result";
+      return "/home";
     case "completed":
       return "/home";
     case "welcome":

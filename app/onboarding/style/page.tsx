@@ -6,8 +6,10 @@ import { useEffect, useState } from "react";
 
 import { OnboardingShell } from "@/components/blocks/onboarding-shell";
 import { Button } from "@/components/ui/button";
+import { completeSurveyOnboarding } from "@/lib/onboarding-completion";
 import { writeOnboardingLocalState } from "@/lib/onboarding-persistence";
 import { readSurveyDraft, writeSurveyDraft } from "@/lib/onboarding-survey-draft";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 const styleSurveyOptions = [
@@ -50,11 +52,21 @@ export default function StyleOnboardingPage() {
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   useEffect(() => {
-    const draft = readSurveyDraft();
-    setSelected(draft.styles);
-    setHydrated(true);
-    writeOnboardingLocalState({ lastStep: "survey_style", completed: false });
-  }, []);
+    const loadDraft = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user?.user_metadata?.onboarding_completed === true) {
+        router.replace("/home");
+        return;
+      }
+
+      const draft = readSurveyDraft();
+      setSelected(draft.styles);
+      setHydrated(true);
+      writeOnboardingLocalState({ lastStep: "survey_style", completed: false });
+    };
+
+    loadDraft();
+  }, [router]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -84,8 +96,7 @@ export default function StyleOnboardingPage() {
   };
 
   const confirmSkip = () => {
-    writeSurveyDraft({ skipped: true });
-    router.push("/onboarding/upload");
+    completeSurveyOnboarding(router.replace, true);
   };
 
   return (

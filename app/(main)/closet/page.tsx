@@ -16,6 +16,10 @@ import {
 } from "@/components/icons/category-icons";
 import { readDiaryEntries } from "@/lib/outfit-diary";
 import { supabase } from "@/lib/supabase";
+import {
+  clearCurrentUserStorageId,
+  setCurrentUserStorageId,
+} from "@/lib/user-storage";
 
 type Profile = {
   fullName: string;
@@ -142,6 +146,7 @@ export default function ClosetPage() {
         return;
       }
 
+      setCurrentUserStorageId(user.id);
       const metadata = user.user_metadata ?? {};
       setProfile({
         fullName:
@@ -164,6 +169,8 @@ export default function ClosetPage() {
   }, [router]);
 
   useEffect(() => {
+    if (loading) return;
+
     const itemCounts = new Map<
       string,
       { category: ClosetCategory; name: string; used: number }
@@ -207,10 +214,11 @@ export default function ClosetPage() {
         items: (grouped.get(category) ?? []).sort((a, b) => b.used - a.used),
       }))
     );
-  }, []);
+  }, [loading]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    clearCurrentUserStorageId();
     router.replace("/");
   };
 

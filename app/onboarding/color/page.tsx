@@ -6,9 +6,11 @@ import { useEffect, useState } from "react";
 
 import { OnboardingShell } from "@/components/blocks/onboarding-shell";
 import { Button } from "@/components/ui/button";
+import { completeSurveyOnboarding } from "@/lib/onboarding-completion";
 import { writeOnboardingLocalState } from "@/lib/onboarding-persistence";
 import { readSurveyDraft, writeSurveyDraft } from "@/lib/onboarding-survey-draft";
 import { colorOptions } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 const MAX_COLORS = 3;
@@ -40,11 +42,21 @@ export default function ColorOnboardingPage() {
   const [limitError, setLimitError] = useState(false);
 
   useEffect(() => {
-    const draft = readSurveyDraft();
-    setSelected(draft.colors);
-    setHydrated(true);
-    writeOnboardingLocalState({ lastStep: "survey_color", completed: false });
-  }, []);
+    const loadDraft = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user?.user_metadata?.onboarding_completed === true) {
+        router.replace("/home");
+        return;
+      }
+
+      const draft = readSurveyDraft();
+      setSelected(draft.colors);
+      setHydrated(true);
+      writeOnboardingLocalState({ lastStep: "survey_color", completed: false });
+    };
+
+    loadDraft();
+  }, [router]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -74,8 +86,7 @@ export default function ColorOnboardingPage() {
   };
 
   const confirmSkip = () => {
-    writeSurveyDraft({ skipped: true });
-    router.push("/onboarding/upload");
+    completeSurveyOnboarding(router.replace, true);
   };
 
   return (

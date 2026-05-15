@@ -9,32 +9,32 @@ const STYLE_KEYWORDS = [
   {
     label: "Casual",
     tokens: ["캐주얼", "편안", "데일리", "프레피", "워크웨어", "시티보이"],
-    color: "#8B6E5A",
+    color: "#6B4F3A",
   },
   {
     label: "Street",
     tokens: ["스트릿", "힙합", "스케이터", "테크웨어", "후드", "오버사이즈"],
-    color: "#1A1A2E",
+    color: "#3C2B20",
   },
   {
     label: "Minimal",
     tokens: ["미니멀", "모던", "톤온톤", "클린", "정제", "심플"],
-    color: "#8A857E",
+    color: "#B8AA99",
   },
   {
     label: "Classic",
     tokens: ["클래식", "트래드", "아이비", "테일러드", "단정", "포멀"],
-    color: "#5A4D43",
+    color: "#4A3A2D",
   },
   {
     label: "Sporty",
     tokens: ["스포티", "애슬레저", "러닝", "고프코어", "활동", "기능성"],
-    color: "#6E885A",
+    color: "#7A8F63",
   },
   {
     label: "Vintage",
     tokens: ["빈티지", "레트로", "아메카지", "브라운", "데님"],
-    color: "#935A6E",
+    color: "#A8866D",
   },
 ];
 
@@ -159,7 +159,7 @@ export default function StyleDnaPage() {
       percentage: style.percentage,
       color:
         STYLE_KEYWORDS.find((keyword) => keyword.label === style.label)?.color ??
-        ["#8B6E5A", "#1A1A2E", "#C4AB82", "#5A7D8B", "#935A6E"][index % 5],
+        ["#6B4F3A", "#3C2B20", "#B8AA99", "#7A8F63", "#A8866D"][index % 5],
     }));
 
     const months = [...monthlyStyles.entries()]
@@ -221,25 +221,41 @@ export default function StyleDnaPage() {
             <CardHeader>
               <CardTitle>Style Distribution</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div
-                className="mx-auto h-44 w-44 rounded-full"
-                style={{ background: conicGradient }}
-              />
-              <div className="space-y-1 text-sm">
+            <CardContent className="space-y-5">
+              <div className="flex flex-col items-center gap-5">
+                <div className="relative h-48 w-48 rounded-full bg-soft p-2 shadow-[inset_0_0_0_1px_rgba(107,79,58,0.08)]">
+                  <div
+                    className="h-full w-full rounded-full shadow-[0_18px_45px_rgba(107,79,58,0.16)]"
+                    style={{ background: conicGradient }}
+                  />
+                  <div className="absolute inset-12 flex flex-col items-center justify-center rounded-full bg-card text-center shadow-[0_10px_24px_rgba(60,43,32,0.10)]">
+                    <span className="text-xs text-primary/50">Top</span>
+                    <span className="text-sm font-semibold text-primary">
+                      {dna.styles[0]?.label ?? "-"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
                 {dna.styles.map((style) => (
                   <div
                     key={style.label}
-                    className="flex items-center justify-between gap-3"
+                    className="space-y-2 rounded-2xl border border-border bg-card px-4 py-3"
                   >
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: style.color }}
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="font-medium text-primary">{style.label}</span>
+                      <span className="text-primary/60">{style.percentage}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-soft">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${style.percentage}%`,
+                          backgroundColor: style.color,
+                        }}
                       />
-                      {style.label}
-                    </span>
-                    <span>{style.percentage}%</span>
+                    </div>
                   </div>
                 ))}
               </div>

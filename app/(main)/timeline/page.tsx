@@ -50,7 +50,7 @@ function moodDisplay(value?: string) {
 }
 
 export default function TimelinePage() {
-  const [view, setView] = useState("grid");
+  const [view, setView] = useState("calendar");
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -165,7 +165,7 @@ export default function TimelinePage() {
               { value: "calendar", label: "Calendar View" },
               { value: "grid", label: "Grid View" },
             ]}
-            defaultValue="grid"
+            defaultValue="calendar"
             onChange={setView}
           />
         </CardContent>
@@ -285,10 +285,14 @@ export default function TimelinePage() {
                       {hasEntry ? (
                         <span
                           className={cn(
-                            "absolute bottom-1.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full",
-                            isSelected ? "bg-white" : "bg-accent",
+                            "absolute bottom-1 left-1/2 flex h-4 w-4 -translate-x-1/2 items-center justify-center rounded-full text-[10px] font-semibold leading-none",
+                            isSelected
+                              ? "bg-white text-primary"
+                              : "bg-accent text-white",
                           )}
-                        />
+                        >
+                          ✓
+                        </span>
                       ) : null}
                     </button>
                   );
