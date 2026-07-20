@@ -1,6 +1,7 @@
 import { writeOnboardingLocalState } from "@/lib/onboarding-persistence";
+import { scopedLocalStorageKey } from "@/lib/user-storage";
 
-export type SurveyFit = "Slim" | "Regular" | "Oversized";
+export type SurveyFit = "Slim" | "Regular" | "Oversized" | "No preference";
 
 export type SurveyDraft = {
   styles: string[];
@@ -23,14 +24,17 @@ const defaultDraft: SurveyDraft = {
 export function readSurveyDraft(): SurveyDraft {
   if (typeof window === "undefined") return defaultDraft;
   try {
-    const raw = window.localStorage.getItem(SURVEY_DRAFT_KEY);
+    const raw = window.localStorage.getItem(scopedLocalStorageKey(SURVEY_DRAFT_KEY));
     if (!raw) return defaultDraft;
     const parsed = JSON.parse(raw) as Partial<SurveyDraft>;
     return {
       styles: Array.isArray(parsed.styles) ? parsed.styles : [],
       colors: Array.isArray(parsed.colors) ? parsed.colors : [],
       fit:
-        parsed.fit === "Slim" || parsed.fit === "Regular" || parsed.fit === "Oversized"
+        parsed.fit === "Slim" ||
+        parsed.fit === "Regular" ||
+        parsed.fit === "Oversized" ||
+        parsed.fit === "No preference"
           ? parsed.fit
           : null,
       skipped: Boolean(parsed.skipped),
@@ -49,7 +53,7 @@ export function writeSurveyDraft(patch: Partial<SurveyDraft>) {
     ...patch,
     updatedAt: Date.now(),
   };
-  window.localStorage.setItem(SURVEY_DRAFT_KEY, JSON.stringify(next));
+  window.localStorage.setItem(scopedLocalStorageKey(SURVEY_DRAFT_KEY), JSON.stringify(next));
 
   writeOnboardingLocalState((state) => ({
     ...state,
@@ -60,4 +64,9 @@ export function writeSurveyDraft(patch: Partial<SurveyDraft>) {
       skipped: next.skipped,
     },
   }));
+}
+
+export function clearSurveyDraft() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(scopedLocalStorageKey(SURVEY_DRAFT_KEY));
 }

@@ -24,7 +24,7 @@ export type OnboardingLocalState = {
   survey: {
     styles: string[];
     colors: string[];
-    fit: "Slim" | "Regular" | "Oversized" | null;
+    fit: "Slim" | "Regular" | "Oversized" | "No preference" | null;
     skipped: boolean;
   };
   upload: UploadDraft;
@@ -83,7 +83,8 @@ export function readOnboardingLocalState(): OnboardingLocalState {
         fit:
           parsed.survey?.fit === "Slim" ||
           parsed.survey?.fit === "Regular" ||
-          parsed.survey?.fit === "Oversized"
+          parsed.survey?.fit === "Oversized" ||
+          parsed.survey?.fit === "No preference"
             ? parsed.survey.fit
             : null,
         skipped: Boolean(parsed.survey?.skipped),
@@ -139,11 +140,11 @@ export function stepToRoute(step: OnboardingStepId) {
     case "survey_fit":
       return "/onboarding/fit";
     case "upload":
-      return "/onboarding/upload";
+      return "/home";
     case "analysis_loading":
-      return "/onboarding/analysis/loading";
+      return "/home";
     case "analysis_result":
-      return "/onboarding/analysis/result";
+      return "/home";
     case "completed":
       return "/home";
     case "welcome":

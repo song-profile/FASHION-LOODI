@@ -1,21 +1,23 @@
 "use client";
 
-"use client";
-
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  readAnalysisResult,
+  type AggregatedAnalysis,
+} from "@/lib/onboarding-analysis-images";
 import { writeOnboardingLocalState } from "@/lib/onboarding-persistence";
 
-const styleRatios = [
+const FALLBACK_RATIOS = [
   { label: "Minimal", value: 46 },
   { label: "Classic", value: 29 },
   { label: "Street", value: 15 },
   { label: "Romantic", value: 10 },
 ];
 
-const itemTags = [
+const FALLBACK_ITEMS = [
   "Single Blazer",
   "Wide Slacks",
   "Leather Belt",
@@ -23,12 +25,43 @@ const itemTags = [
   "Structured Tote",
 ];
 
-const palette = ["#1F2430", "#6D5C4A", "#C3B8AA", "#F1EFEA"];
+const FALLBACK_PALETTE = [
+  { label: "Charcoal", hex: "#1F2430" },
+  { label: "Walnut", hex: "#6D5C4A" },
+  { label: "Stone", hex: "#C3B8AA" },
+  { label: "Ivory", hex: "#F1EFEA" },
+];
+
+const FALLBACK_SILHOUETTE = "Relaxed Straight + Defined Shoulder";
+
+const FALLBACK_NOTE =
+  "클래식 테일러링을 기반으로 실루엣은 여유 있고 정돈되어 있습니다. 다음 기록에서는 텍스처 대비를 한 단계 높이면 스타일 아이덴티티가 더 선명해질 가능성이 높아요.";
+
+function buildRatios(result: AggregatedAnalysis) {
+  const total = Object.values(result.styleCounts).reduce((s, n) => s + n, 0);
+  if (total === 0) return [];
+  return Object.entries(result.styleCounts)
+    .map(([label, count]) => ({ label, value: Math.round((count / total) * 100) }))
+    .sort((a, b) => b.value - a.value);
+}
 
 export default function AnalysisResultPage() {
+  const [result, setResult] = useState<AggregatedAnalysis | null>(null);
+
   useEffect(() => {
     writeOnboardingLocalState({ lastStep: "analysis_result", completed: false });
+    setResult(readAnalysisResult());
   }, []);
+
+  const ratios = result ? buildRatios(result) : [];
+  const itemTags = result ? result.items.map((it) => it.name).slice(0, 8) : [];
+  const colorTags = result ? result.colors : [];
+  const silhouette = result
+    ? [result.seasons.join(" · "), result.moods.slice(0, 2).join(", ")]
+        .filter(Boolean)
+        .join(" / ")
+    : "";
+  const note = result?.notes.join("\n\n") ?? "";
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-md bg-white px-4 pb-28 pt-8">
@@ -46,7 +79,7 @@ export default function AnalysisResultPage() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
             Style Category Ratio
           </p>
-          {styleRatios.map((ratio) => (
+          {(ratios.length > 0 ? ratios : FALLBACK_RATIOS).map((ratio) => (
             <div key={ratio.label} className="space-y-1.5">
               <div className="flex items-center justify-between text-xs text-primary/75">
                 <span>{ratio.label}</span>
@@ -67,8 +100,11 @@ export default function AnalysisResultPage() {
             Detected Item Tags
           </p>
           <div className="flex flex-wrap gap-2">
-            {itemTags.map((tag) => (
-              <span key={tag} className="rounded-full border border-border px-3 py-1 text-xs text-primary/80">
+            {(itemTags.length > 0 ? itemTags : FALLBACK_ITEMS).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-border px-3 py-1 text-xs text-primary/80"
+              >
                 {tag}
               </span>
             ))}
@@ -79,14 +115,33 @@ export default function AnalysisResultPage() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
             Color Palette
           </p>
-          <div className="flex gap-2">
-            {palette.map((hex) => (
-              <div key={hex} className="flex items-center gap-2 rounded-lg border border-border px-2 py-1">
-                <span className="h-5 w-5 rounded-full border border-black/10" style={{ backgroundColor: hex }} />
-                <span className="text-[11px] text-primary/70">{hex}</span>
-              </div>
-            ))}
-          </div>
+          {colorTags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {colorTags.map((c) => (
+                <span
+                  key={c}
+                  className="rounded-full border border-border px-3 py-1 text-xs text-primary/80"
+                >
+                  {c}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              {FALLBACK_PALETTE.map((p) => (
+                <div
+                  key={p.hex}
+                  className="flex items-center gap-2 rounded-lg border border-border px-2 py-1"
+                >
+                  <span
+                    className="h-5 w-5 rounded-full border border-black/10"
+                    style={{ backgroundColor: p.hex }}
+                  />
+                  <span className="text-[11px] text-primary/70">{p.hex}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="space-y-3 rounded-2xl border border-border p-4">
@@ -94,7 +149,7 @@ export default function AnalysisResultPage() {
             Silhouette Result
           </p>
           <p className="text-sm font-medium text-primary">
-            Relaxed Straight + Defined Shoulder
+            {silhouette || FALLBACK_SILHOUETTE}
           </p>
         </section>
 
@@ -102,10 +157,8 @@ export default function AnalysisResultPage() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
             AI Style Note
           </p>
-          <p className="text-sm leading-relaxed text-primary/75">
-            클래식 테일러링을 기반으로 실루엣은 여유 있고 정돈되어 있습니다.
-            다음 기록에서는 텍스처 대비를 한 단계 높이면 스타일 아이덴티티가 더
-            선명해질 가능성이 높아요.
+          <p className="whitespace-pre-line text-sm leading-relaxed text-primary/75">
+            {note || FALLBACK_NOTE}
           </p>
         </section>
       </div>

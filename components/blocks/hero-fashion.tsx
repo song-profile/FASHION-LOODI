@@ -1,10 +1,12 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { CalendarDays, Hexagon, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { identifierToAuthEmail } from "@/lib/auth-identifier";
 import {
   clearOnboardingLocalState,
   isOnboardingStateStale,
@@ -12,34 +14,32 @@ import {
   stepToRoute,
   writeOnboardingLocalState,
 } from "@/lib/onboarding-persistence";
+import { isEmailAllowed } from "@/lib/access-control";
 import { supabase } from "@/lib/supabase";
+import { setCurrentUserStorageId } from "@/lib/user-storage";
 import { cn } from "@/lib/utils";
 
 const valueCards = [
   {
-    title: "Daily Outfit Log",
-    description: "Capture each look in seconds with clean, structured entries.",
+    icon: CalendarDays,
+    title: "매일의 착장을 기록",
+    description: "날씨, 감정, TPO와 함께 타임라인으로",
   },
   {
-    title: "AI Style Intelligence",
-    description: "Understand your patterns, silhouettes, and repeat strengths.",
+    icon: Hexagon,
+    title: "AI가 분석하는 Style DNA",
+    description: "색상, 실루엣, 아이템을 자동 인식",
   },
   {
-    title: "Seasonal Closet Clarity",
-    description: "Build a smarter wardrobe with weather-aware recommendations.",
+    icon: Star,
+    title: "쌓일수록 정밀해지는 추천",
+    description: "맥락 기반 개인화 코디 추천",
   },
-];
-
-const carouselItems = [
-  "Editorial Looks",
-  "Mood Tracking",
-  "Smart Tagging",
-  "Weekly Recap",
 ];
 
 function GoogleMark() {
   return (
-    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-soft">
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
         <path
           fill="#4285F4"
@@ -88,7 +88,12 @@ export default function HomePage() {
   const [authOpen, setAuthOpen] = useState(false);
   const [isSubmittingLogin, setIsSubmittingLogin] = useState(false);
   const [isSubmittingGoogle, setIsSubmittingGoogle] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showLoginError, setShowLoginError] = useState(false);
+  const [loginErrorMessage, setLoginErrorMessage] = useState(
+    "로그인에 실패했어요. 아이디 또는 비밀번호를 다시 확인해 주세요."
+  );
   const [resumeRoute, setResumeRoute] = useState<string | null>(null);
   const [showResume, setShowResume] = useState(false);
 
@@ -96,6 +101,43 @@ export default function HomePage() {
     const timer = window.setTimeout(() => setBooting(false), 220);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const redirectSignedInUser = async () => {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
+
+      if (!user) return;
+      if (!isEmailAllowed(user.email)) {
+        await supabase.auth.signOut();
+        return;
+      }
+      setCurrentUserStorageId(user.id);
+
+      const metadata = user.user_metadata ?? {};
+      const completedOnboarding = metadata.onboarding_completed === true;
+      const hasProfile =
+        typeof metadata.full_name === "string" &&
+        metadata.full_name.trim().length > 0 &&
+        typeof metadata.gender === "string" &&
+        metadata.gender.trim().length > 0 &&
+        typeof metadata.birth_date === "string" &&
+        metadata.birth_date.trim().length > 0;
+
+      if (!hasProfile) {
+        router.replace(
+          `/profile/setup?next=${encodeURIComponent(
+            completedOnboarding ? "/home" : "/onboarding/style"
+          )}`
+        );
+        return;
+      }
+
+      router.replace(completedOnboarding ? "/home" : "/onboarding/style");
+    };
+
+    redirectSignedInUser();
+  }, [router]);
 
   useEffect(() => {
     const state = readOnboardingLocalState();
@@ -115,13 +157,67 @@ export default function HomePage() {
     setAuthOpen(true);
   };
 
-  const handleMockLoginFail = () => {
-    setIsSubmittingLogin(true);
-    window.setTimeout(() => {
-      setIsSubmittingLogin(false);
+  const routeAfterEmailLogin = async () => {
+    const { data } = await supabase.auth.getUser();
+    if (data.user) setCurrentUserStorageId(data.user.id);
+    if (!isEmailAllowed(data.user?.email)) {
+      await supabase.auth.signOut();
+      setLoginErrorMessage("초대받은 아이디만 사용할 수 있어요.");
       setShowLoginError(true);
       window.setTimeout(() => setShowLoginError(false), 2600);
-    }, 700);
+      return;
+    }
+    const metadata = data.user?.user_metadata ?? {};
+    const completedOnboarding = metadata.onboarding_completed === true;
+    const hasProfile =
+      typeof metadata.full_name === "string" &&
+      metadata.full_name.trim().length > 0 &&
+      typeof metadata.gender === "string" &&
+      metadata.gender.trim().length > 0 &&
+      typeof metadata.birth_date === "string" &&
+      metadata.birth_date.trim().length > 0;
+
+    if (!hasProfile) {
+      router.replace(
+        `/profile/setup?next=${encodeURIComponent(
+          completedOnboarding ? "/home" : "/onboarding/style"
+        )}`
+      );
+      return;
+    }
+
+    router.replace(completedOnboarding ? "/home" : "/onboarding/style");
+  };
+
+  const handleEmailLogin = async () => {
+    const authEmail = identifierToAuthEmail(email);
+
+    if (!email.trim() || !password) {
+      setLoginErrorMessage("아이디와 비밀번호를 입력해 주세요.");
+      setShowLoginError(true);
+      window.setTimeout(() => setShowLoginError(false), 2600);
+      return;
+    }
+
+    setIsSubmittingLogin(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: authEmail,
+      password,
+    });
+
+    setIsSubmittingLogin(false);
+
+    if (error) {
+      setLoginErrorMessage(
+        "로그인에 실패했어요. 아이디 또는 비밀번호를 다시 확인해 주세요."
+      );
+      setShowLoginError(true);
+      window.setTimeout(() => setShowLoginError(false), 2600);
+      return;
+    }
+
+    await routeAfterEmailLogin();
   };
 
   const handleGoogleLogin = async () => {
@@ -170,41 +266,28 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-32">
+    <div className="min-h-screen bg-background pb-32">
       <motion.main
         variants={revealContainer}
         initial="hidden"
         animate="show"
-        className="mx-auto w-full max-w-md px-4 py-6"
+        className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-md flex-col justify-center px-8 py-10"
       >
-        <motion.header variants={revealItem} className="space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/80 px-3 py-1.5 text-sm">
-            <span className="h-2 w-2 rounded-full bg-[#f8b3c4]" />
-            <span className="font-semibold tracking-tight text-primary">
-              LOODI
-            </span>
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight text-primary">LOODI</h1>
-          <p className="text-base text-primary/70">Your Style, Recorded.</p>
+        <motion.header variants={revealItem} className="text-center">
+          <h1 className="font-serif text-7xl font-black tracking-tight text-primary">
+            LOODI
+          </h1>
+          <p className="mt-3 font-serif text-xl font-semibold italic text-accent">
+            Your Style, Recorded.
+          </p>
+          <p className="mt-5 text-xs font-medium leading-6 text-muted-foreground">
+            기록이 쌓일수록, 스타일이 선명해진다.
+            <br />
+            AI와 함께하는 나만의 패션 다이어리
+          </p>
         </motion.header>
 
-        <motion.section variants={revealItem} className="mt-6">
-          <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2">
-            {carouselItems.map((item, index) => (
-              <div
-                key={item}
-                className="min-w-[220px] snap-start rounded-2xl border border-border/80 bg-gradient-to-br from-rose-50 via-white to-amber-50 p-4"
-              >
-                <p className="text-xs uppercase tracking-[0.2em] text-primary/45">
-                  {`0${index + 1}`}
-                </p>
-                <p className="mt-2 text-sm font-medium text-primary">{item}</p>
-              </div>
-            ))}
-          </div>
-        </motion.section>
-
-        <motion.section variants={revealItem} className="mt-4 space-y-3">
+        <motion.section variants={revealItem} className="mt-16 space-y-6">
           {showResume ? (
             <div className="rounded-2xl border border-border bg-soft px-4 py-3">
               <p className="text-sm text-primary/75">
@@ -229,34 +312,43 @@ export default function HomePage() {
             </div>
           ) : null}
 
-          {valueCards.map((card) => (
+          {valueCards.map((card) => {
+            const Icon = card.icon;
+            return (
             <article
               key={card.title}
-              className="rounded-2xl border border-border/80 bg-white px-4 py-4 shadow-[0_6px_20px_rgba(27,42,74,0.05)]"
+              className="flex items-center gap-4"
             >
-              <h2 className="text-sm font-semibold tracking-tight text-primary">
-                {card.title}
-              </h2>
-              <p className="mt-1 text-sm leading-relaxed text-primary/65">
-                {card.description}
-              </p>
+              <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-2xl bg-soft text-accent">
+                <Icon size={28} strokeWidth={1.8} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-primary">
+                  {card.title}
+                </h2>
+                <p className="mt-1 text-base font-semibold leading-relaxed text-muted-foreground">
+                  {card.description}
+                </p>
+              </div>
             </article>
-          ))}
+            );
+          })}
         </motion.section>
       </motion.main>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/80 bg-white/95 px-4 py-4 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/80 bg-background/95 px-4 py-4 backdrop-blur">
         <div className="mx-auto w-full max-w-md space-y-3">
           <Button
-            className="h-11 w-full"
-            onClick={() => router.push("/onboarding/style")}
+            variant="outline"
+            className="h-11 w-full border-border bg-card text-primary"
+            onClick={() => router.push("/signup")}
           >
             시작하기
           </Button>
           <button
             type="button"
             onClick={openLogin}
-            className="block w-full text-center text-sm text-primary/70 underline-offset-4 hover:underline"
+            className="flex h-11 w-full items-center justify-center rounded-2xl border border-border bg-card text-sm font-medium text-muted-foreground transition hover:border-accent/35 hover:text-accent"
           >
             이미 계정이 있어요
           </button>
@@ -308,20 +400,38 @@ export default function HomePage() {
                   </button>
                 </div>
 
-                <Button
-                  variant="outline"
-                  className="h-11 w-full"
-                  onClick={handleMockLoginFail}
-                  disabled={isSubmittingLogin}
-                >
-                  {isSubmittingLogin ? "로그인 중..." : "이메일로 로그인"}
-                </Button>
+                <div className="space-y-2">
+                  <input
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-border/80 bg-white px-4 text-sm text-primary outline-none transition focus:border-accent"
+                    placeholder="아이디"
+                    type="text"
+                    autoComplete="username"
+                  />
+                  <input
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-border/80 bg-white px-4 text-sm text-primary outline-none transition focus:border-accent"
+                    placeholder="비밀번호"
+                    type="password"
+                    autoComplete="current-password"
+                  />
+                  <Button
+                    variant="outline"
+                    className="h-11 w-full"
+                    onClick={handleEmailLogin}
+                    disabled={isSubmittingLogin}
+                  >
+                    {isSubmittingLogin ? "로그인 중..." : "아이디로 로그인"}
+                  </Button>
+                </div>
 
                 <button
                   type="button"
                   onClick={() => {
                     setAuthOpen(false);
-                    router.push("/onboarding/style");
+                    router.push("/signup");
                   }}
                   className="w-full text-center text-sm text-primary/70 underline-offset-4 hover:underline"
                 >
@@ -344,7 +454,7 @@ export default function HomePage() {
               "fixed left-1/2 top-4 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow"
             )}
           >
-            로그인에 실패했어요. 이메일 또는 비밀번호를 다시 확인해 주세요.
+            {loginErrorMessage}
           </motion.div>
         ) : null}
       </AnimatePresence>

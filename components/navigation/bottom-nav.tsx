@@ -18,7 +18,7 @@ export function BottomNav() {
 
   return (
     <div className="fixed inset-x-0 bottom-4 z-50 px-4">
-      <div className="mx-auto flex max-w-md items-end justify-between rounded-3xl border border-border bg-white/95 p-3 shadow-soft backdrop-blur">
+      <div className="mx-auto flex max-w-md items-end justify-between rounded-3xl border border-border bg-card/95 p-3 shadow-soft backdrop-blur">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = pathname === tab.href;

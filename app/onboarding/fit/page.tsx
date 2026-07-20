@@ -6,9 +6,11 @@ import { useEffect, useState } from "react";
 
 import { OnboardingShell } from "@/components/blocks/onboarding-shell";
 import { Button } from "@/components/ui/button";
+import { completeSurveyOnboarding } from "@/lib/onboarding-completion";
 import { writeOnboardingLocalState } from "@/lib/onboarding-persistence";
 import { readSurveyDraft, writeSurveyDraft, type SurveyFit } from "@/lib/onboarding-survey-draft";
 import { fitOptions } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 export default function FitOnboardingPage() {
@@ -18,11 +20,21 @@ export default function FitOnboardingPage() {
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   useEffect(() => {
-    const draft = readSurveyDraft();
-    setSelected(draft.fit);
-    setHydrated(true);
-    writeOnboardingLocalState({ lastStep: "survey_fit", completed: false });
-  }, []);
+    const loadDraft = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user?.user_metadata?.onboarding_completed === true) {
+        router.replace("/home");
+        return;
+      }
+
+      const draft = readSurveyDraft();
+      setSelected(draft.fit);
+      setHydrated(true);
+      writeOnboardingLocalState({ lastStep: "survey_fit", completed: false });
+    };
+
+    loadDraft();
+  }, [router]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -31,12 +43,11 @@ export default function FitOnboardingPage() {
 
   const handleNext = () => {
     if (!selected) return;
-    router.push("/onboarding/upload");
+    completeSurveyOnboarding(router.replace);
   };
 
   const confirmSkip = () => {
-    writeSurveyDraft({ skipped: true });
-    router.push("/onboarding/upload");
+    completeSurveyOnboarding(router.replace, true);
   };
 
   return (
@@ -49,7 +60,7 @@ export default function FitOnboardingPage() {
         footer={
           <div className="space-y-2">
             <Button className="h-11 w-full" disabled={!selected} onClick={handleNext}>
-              Continue to upload
+              Complete survey
             </Button>
             <p className="text-center text-xs text-primary/55">
               {!selected ? "Choose one fit to continue." : "Great. We will use this as your default fit profile."}

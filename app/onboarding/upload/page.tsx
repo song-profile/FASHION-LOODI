@@ -10,6 +10,14 @@ import { OnboardingProgress } from "@/components/sections/onboarding-progress";
 import { Button } from "@/components/ui/button";
 import { resetAnalysisRetryCount } from "@/lib/onboarding-analysis-session";
 import {
+  clearAnalysisResult,
+  compressImageForUpload,
+  setOutfitPhotos,
+  setPendingImages,
+  SUPPORTED_API_MEDIA_TYPES,
+  type PendingImage,
+} from "@/lib/onboarding-analysis-images";
+import {
   readOnboardingLocalState,
   writeOnboardingLocalState,
 } from "@/lib/onboarding-persistence";
@@ -77,6 +85,7 @@ export default function OutfitUploadPage() {
   const [manualWeatherOpen, setManualWeatherOpen] = useState(false);
   const [manualWeatherInput, setManualWeatherInput] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -255,10 +264,34 @@ export default function OutfitUploadPage() {
     setManualWeatherOpen(false);
   };
 
-  const handleStartAnalysis = () => {
-    if (images.length === 0) return;
-    resetAnalysisRetryCount();
-    router.push("/onboarding/analysis/loading");
+  const handleStartAnalysis = async () => {
+    if (images.length === 0 || submitting) return;
+    setSubmitting(true);
+    setUploadError(null);
+    try {
+      const supported = images.filter((img) =>
+        SUPPORTED_API_MEDIA_TYPES.has(img.file.type),
+      );
+      if (supported.length === 0) {
+        setUploadError(
+          "AI 분석에 지원되는 이미지 형식이 없어요 (JPEG/PNG/WebP/GIF만 가능).",
+        );
+        return;
+      }
+      const pending: PendingImage[] = await Promise.all(
+        supported.map((img) => compressImageForUpload(img.file)),
+      );
+      setPendingImages(pending);
+      setOutfitPhotos(pending);
+      clearAnalysisResult();
+      resetAnalysisRetryCount();
+      router.push("/onboarding/analysis/loading");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "이미지 처리 실패";
+      setUploadError(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -303,7 +336,7 @@ export default function OutfitUploadPage() {
 
         {images.length > 0 ? (
           <section className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
+            <p className="text-xs font-medium uppercase tracking-[0.04em] text-primary/50">
               Uploaded
             </p>
             <div className="grid grid-cols-3 gap-2">
@@ -340,7 +373,7 @@ export default function OutfitUploadPage() {
         ) : null}
 
         <section className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
+          <p className="text-xs font-medium uppercase tracking-[0.04em] text-primary/50">
             Emotion Tags
           </p>
           <div className="flex flex-wrap gap-2">
@@ -369,7 +402,7 @@ export default function OutfitUploadPage() {
         </section>
 
         <section className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
+          <p className="text-xs font-medium uppercase tracking-[0.04em] text-primary/50">
             TPO Tags
           </p>
           <div className="flex flex-wrap gap-2">
@@ -421,7 +454,7 @@ export default function OutfitUploadPage() {
         </section>
 
         <section className="space-y-2">
-          <label htmlFor="memo" className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
+          <label htmlFor="memo" className="text-xs font-medium uppercase tracking-[0.04em] text-primary/50">
             Memo (Optional)
           </label>
           <input
@@ -443,10 +476,10 @@ export default function OutfitUploadPage() {
         <div className="mx-auto w-full max-w-md space-y-2">
           <Button
             className="h-11 w-full"
-            disabled={images.length === 0}
+            disabled={images.length === 0 || submitting}
             onClick={handleStartAnalysis}
           >
-            AI 분석 시작
+            {submitting ? "이미지 준비 중..." : "AI 분석 시작"}
           </Button>
           {images.length === 0 ? (
             <p className="text-center text-xs text-primary/55">

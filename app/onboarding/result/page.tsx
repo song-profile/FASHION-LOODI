@@ -3,12 +3,27 @@
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { OnboardingProgress } from "@/components/sections/onboarding-progress";
+import {
+  clearAnalysisResult,
+  clearOutfitPhotos,
+  readAnalysisResult,
+  readOutfitPhotos,
+  toDataUrl,
+  type AggregatedAnalysis,
+} from "@/lib/onboarding-analysis-images";
 import { writeOnboardingLocalState } from "@/lib/onboarding-persistence";
+import { appendDiaryEntry, formatDateKey } from "@/lib/outfit-diary";
 import { cn } from "@/lib/utils";
+
+const FALLBACK_PHOTOS = [
+  "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?auto=format&fit=crop&w=1200&q=80",
+];
 
 export default function OnboardingResultPage() {
   const router = useRouter();
@@ -16,15 +31,19 @@ export default function OnboardingResultPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[] | null>(null);
+  const [analysis, setAnalysis] = useState<AggregatedAnalysis | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const stored = readOutfitPhotos();
+    if (stored.length > 0) setUploadedPhotos(stored.map(toDataUrl));
+    setAnalysis(readAnalysisResult());
+  }, []);
+
   const photos = useMemo(
-    () => [
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?auto=format&fit=crop&w=1200&q=80",
-    ],
-    []
+    () => uploadedPhotos ?? FALLBACK_PHOTOS,
+    [uploadedPhotos],
   );
 
   const today = useMemo(
@@ -48,7 +67,25 @@ export default function OnboardingResultPage() {
     if (saving) return;
     setSaving(true);
     window.setTimeout(() => {
+      const photos = readOutfitPhotos();
+      if (photos.length > 0) {
+        const tags = analysis
+          ? [
+              ...analysis.seasons,
+              ...analysis.styles.slice(0, 2),
+              ...analysis.moods.slice(0, 2),
+            ].filter(Boolean)
+          : [];
+        appendDiaryEntry({
+          date: formatDateKey(new Date()),
+          photos,
+          styleNote: analysis?.notes.join("\n\n"),
+          tags,
+        });
+      }
       writeOnboardingLocalState({ completed: true, lastStep: "completed" });
+      clearOutfitPhotos();
+      clearAnalysisResult();
       setSaved(true);
       window.setTimeout(() => {
         router.push("/home");
@@ -84,6 +121,7 @@ export default function OnboardingResultPage() {
                     height={1600}
                     className="h-[320px] w-full object-cover"
                     priority={idx === 0}
+                    unoptimized={uploadedPhotos !== null}
                   />
                 </div>
               </div>
@@ -103,7 +141,14 @@ export default function OnboardingResultPage() {
         </section>
 
         <section className="flex flex-wrap gap-2">
-          {["맑음 23°C", "Confident", "Work", "Wednesday"].map((badge) => (
+          {(analysis
+            ? [
+                ...analysis.seasons,
+                ...analysis.styles.slice(0, 2),
+                ...analysis.moods.slice(0, 2),
+              ].filter(Boolean)
+            : ["맑음 23°C", "Confident", "Work", "Wednesday"]
+          ).map((badge) => (
             <span
               key={badge}
               className="rounded-full border border-border bg-white px-3 py-1.5 text-xs text-primary/75"
@@ -117,9 +162,10 @@ export default function OnboardingResultPage() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
             AI Style Note
           </p>
-          <p className="text-sm leading-relaxed text-primary/75">
-            오늘 룩은 미니멀한 테일러링 균형이 좋아 안정감이 높습니다. 내일은 같은
-            실루엣에 텍스처 대비를 조금 더하면 기록의 다양성이 더 좋아질 수 있어요.
+          <p className="whitespace-pre-line text-sm leading-relaxed text-primary/75">
+            {analysis && analysis.notes.length > 0
+              ? analysis.notes.join("\n\n")
+              : "오늘 룩은 미니멀한 테일러링 균형이 좋아 안정감이 높습니다. 내일은 같은 실루엣에 텍스처 대비를 조금 더하면 기록의 다양성이 더 좋아질 수 있어요."}
           </p>
         </section>
 
@@ -147,7 +193,7 @@ export default function OnboardingResultPage() {
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/80 bg-white/95 px-4 py-4 backdrop-blur">
         <div className="mx-auto w-full max-w-md space-y-2">
           <Button
-            className="h-11 w-full bg-[#C29A73] text-white hover:bg-[#B18C67]"
+            className="h-11 w-full bg-accent text-white hover:bg-accent/90"
             onClick={handleComplete}
             disabled={saving}
           >
@@ -173,7 +219,7 @@ export default function OnboardingResultPage() {
           ? Array.from({ length: 18 }).map((_, idx) => (
               <motion.span
                 key={`confetti-${idx}`}
-                className="absolute h-1.5 w-1.5 rounded-full bg-[#C29A73]/70"
+                className="absolute h-1.5 w-1.5 rounded-full bg-accent/70"
                 initial={{
                   x: `${12 + ((idx * 5) % 76)}%`,
                   y: "-8%",

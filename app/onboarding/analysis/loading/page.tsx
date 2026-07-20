@@ -5,10 +5,18 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { OnboardingProgress } from "@/components/sections/onboarding-progress";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import {
   incrementAnalysisRetryCount,
   resetAnalysisRetryCount,
 } from "@/lib/onboarding-analysis-session";
+import {
+  aggregate,
+  clearPendingImages,
+  readPendingImages,
+  setAnalysisResult,
+  type SingleAnalysis,
+} from "@/lib/onboarding-analysis-images";
 import { writeOnboardingLocalState } from "@/lib/onboarding-persistence";
 import { cn } from "@/lib/utils";
 
@@ -21,16 +29,36 @@ const stageLabels = [
   "Diary-ready summary",
 ];
 
+const loadingTips = [
+  {
+    title: "LOODI 사용 팁",
+    body: "사진은 밝은 곳에서 전신이 보이게 찍을수록 아이템과 색상을 더 안정적으로 잡아요.",
+  },
+  {
+    title: "패션 팁",
+    body: "아우터와 신발 색을 맞추면 전체 룩이 더 정돈되어 보입니다.",
+  },
+  {
+    title: "기록 팁",
+    body: "날씨와 기분을 함께 남기면 나중에 비슷한 날의 코디 추천이 더 좋아져요.",
+  },
+  {
+    title: "Style DNA",
+    body: "사진 기록이 쌓일수록 자주 입는 색상, 실루엣, 무드가 자동으로 정리됩니다.",
+  },
+];
+
 export default function AnalysisLoadingPage() {
   const router = useRouter();
   const [statuses, setStatuses] = useState<StageStatus[]>(
-    stageLabels.map((_, idx) => (idx === 0 ? "analyzing" : "waiting"))
+    stageLabels.map((_, idx) => (idx === 0 ? "analyzing" : "waiting")),
   );
   const [showReassure, setShowReassure] = useState(false);
+  const [tipIndex, setTipIndex] = useState(0);
 
   const allCompleted = useMemo(
     () => statuses.every((status) => status === "completed"),
-    [statuses]
+    [statuses],
   );
 
   useEffect(() => {
@@ -43,44 +71,98 @@ export default function AnalysisLoadingPage() {
   }, []);
 
   useEffect(() => {
-    if (allCompleted) return;
-    const currentIndex = statuses.findIndex((status) => status === "analyzing");
-    if (currentIndex === -1) return;
-
-    const timer = window.setTimeout(() => {
-      setStatuses((prev) => {
-        const next = [...prev];
-        next[currentIndex] = "completed";
-        if (currentIndex + 1 < next.length) next[currentIndex + 1] = "analyzing";
-        return next;
-      });
-    }, 1400);
-
-    return () => window.clearTimeout(timer);
-  }, [statuses, allCompleted]);
+    const tipTimer = window.setInterval(() => {
+      setTipIndex((current) => (current + 1) % loadingTips.length);
+    }, 4200);
+    return () => window.clearInterval(tipTimer);
+  }, []);
 
   useEffect(() => {
-    if (!allCompleted) return;
+    let cancelled = false;
 
-    const finalizeTimer = window.setTimeout(() => {
-      const shouldFail = Math.random() < 0.38;
-
-      if (shouldFail) {
-        const nextFailures = incrementAnalysisRetryCount();
-        if (nextFailures >= 3) {
-          router.replace("/onboarding/manual-tagging");
-          return;
-        }
+    const handleFailure = () => {
+      const nextFailures = incrementAnalysisRetryCount();
+      if (nextFailures >= 3) {
+        router.replace("/onboarding/manual-tagging");
+      } else {
         router.replace("/onboarding/analysis/failure");
+      }
+    };
+
+    const advance = (idx: number) => {
+      if (cancelled) return;
+      setStatuses((prev) => {
+        const next = [...prev];
+        for (let i = 0; i <= idx; i += 1) next[i] = "completed";
+        if (idx + 1 < next.length) next[idx + 1] = "analyzing";
+        return next;
+      });
+    };
+
+    const run = async () => {
+      const images = readPendingImages();
+      if (images.length === 0) {
+        router.replace("/onboarding/upload");
         return;
       }
 
-      resetAnalysisRetryCount();
-      router.replace("/onboarding/analysis/result");
-    }, 900);
+      // Stage 0: image quality check (instant pass — file types validated upstream)
+      await new Promise((r) => setTimeout(r, 350));
+      if (cancelled) return;
+      advance(0);
 
-    return () => window.clearTimeout(finalizeTimer);
-  }, [allCompleted, router]);
+      // Stage 1 & 2: real Gemini calls per image
+      const perImage: SingleAnalysis[] = [];
+      try {
+        for (const img of images) {
+          const res = await authenticatedFetch("/api/analyze-outfit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: img.base64, mediaType: img.mediaType }),
+          });
+          if (!res.ok) {
+            const { error: msg } = await res
+              .json()
+              .catch(() => ({ error: `HTTP ${res.status}` }));
+            throw new Error(msg || `HTTP ${res.status}`);
+          }
+          const data: SingleAnalysis = await res.json();
+          perImage.push(data);
+          if (cancelled) return;
+        }
+      } catch (err) {
+        console.error("AI analysis failed", err);
+        if (!cancelled) handleFailure();
+        return;
+      }
+
+      if (cancelled) return;
+      advance(1);
+
+      // Stage 3: aggregation
+      await new Promise((r) => setTimeout(r, 350));
+      if (cancelled) return;
+      const aggregated = aggregate(perImage);
+      setAnalysisResult(aggregated);
+      clearPendingImages();
+      advance(2);
+
+      // Stage 4: brief settle before navigation
+      await new Promise((r) => setTimeout(r, 500));
+      if (cancelled) return;
+      advance(3);
+
+      resetAnalysisRetryCount();
+      await new Promise((r) => setTimeout(r, 300));
+      if (cancelled) return;
+      router.replace("/onboarding/analysis/result");
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-md bg-white px-4 py-8">
@@ -116,14 +198,17 @@ export default function AnalysisLoadingPage() {
             {stageLabels.map((label, idx) => {
               const status = statuses[idx];
               return (
-                <div key={label} className="flex items-center justify-between rounded-xl border border-border/70 px-3 py-2">
+                <div
+                  key={label}
+                  className="flex items-center justify-between rounded-xl border border-border/70 px-3 py-2"
+                >
                   <p className="text-sm text-primary">{label}</p>
                   <span
                     className={cn(
                       "text-xs font-medium",
                       status === "completed" && "text-emerald-600",
                       status === "analyzing" && "text-primary",
-                      status === "waiting" && "text-primary/45"
+                      status === "waiting" && "text-primary/45",
                     )}
                   >
                     {status === "waiting"
@@ -137,11 +222,26 @@ export default function AnalysisLoadingPage() {
             })}
           </div>
 
-          {showReassure ? (
+          {showReassure && !allCompleted ? (
             <p className="mt-5 rounded-xl bg-soft px-3 py-2 text-xs leading-relaxed text-primary/70">
               결과 정확도를 위해 조금 더 꼼꼼히 확인하고 있어요. 잠시만 기다려 주세요.
             </p>
           ) : null}
+
+          <motion.div
+            key={tipIndex}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28 }}
+            className="mt-5 rounded-2xl border border-border bg-soft/70 p-4"
+          >
+            <p className="text-xs font-semibold text-primary">
+              {loadingTips[tipIndex].title}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-primary/65">
+              {loadingTips[tipIndex].body}
+            </p>
+          </motion.div>
         </section>
       </div>
     </main>
