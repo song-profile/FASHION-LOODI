@@ -1,6 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
+import { requireAllowedApiUser } from "@/lib/access-control";
+
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
@@ -31,6 +33,11 @@ LOODI 앱 소개:
 - 모르는 정책/가격/일정 등 사실 확인이 필요한 내용은 추측하지 않습니다.`;
 
 export async function POST(req: Request) {
+  const access = await requireAllowedApiUser(req);
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -90,9 +97,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ reply: text });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[contact-chat] failed:", err);
     return NextResponse.json(
-      { error: `Chat failed: ${message}` },
+      { error: "AI 챗봇 응답을 불러오지 못했어요. 잠시 후 다시 시도해 주세요." },
       { status: 500 },
     );
   }

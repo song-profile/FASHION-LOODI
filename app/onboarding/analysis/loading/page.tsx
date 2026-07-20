@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { OnboardingProgress } from "@/components/sections/onboarding-progress";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import {
   incrementAnalysisRetryCount,
   resetAnalysisRetryCount,
@@ -114,7 +115,7 @@ export default function AnalysisLoadingPage() {
       const perImage: SingleAnalysis[] = [];
       try {
         for (const img of images) {
-          const res = await fetch("/api/analyze-outfit", {
+          const res = await authenticatedFetch("/api/analyze-outfit", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ image: img.base64, mediaType: img.mediaType }),

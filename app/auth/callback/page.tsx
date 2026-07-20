@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 
+import { isEmailAllowed } from "@/lib/access-control";
 import { supabase } from "@/lib/supabase";
 import { setCurrentUserStorageId } from "@/lib/user-storage";
 
@@ -29,6 +30,11 @@ function AuthCallbackContent() {
 
       const { data } = await supabase.auth.getUser();
       if (data.user) setCurrentUserStorageId(data.user.id);
+      if (!isEmailAllowed(data.user?.email)) {
+        await supabase.auth.signOut();
+        router.replace("/");
+        return;
+      }
       const metadata = data.user?.user_metadata ?? {};
       const completedOnboarding = metadata.onboarding_completed === true;
       const hasProfile =

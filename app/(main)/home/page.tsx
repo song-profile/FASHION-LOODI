@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import {
   computeStreakLevel,
   diaryPhotoToDataUrl,
@@ -577,7 +578,7 @@ export default function HomeTabPage() {
           }
         : null;
 
-      const response = await fetch("/api/recommend-outfit", {
+      const response = await authenticatedFetch("/api/recommend-outfit", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

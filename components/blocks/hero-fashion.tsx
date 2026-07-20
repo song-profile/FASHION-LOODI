@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { identifierToAuthEmail } from "@/lib/auth-identifier";
 import {
   clearOnboardingLocalState,
   isOnboardingStateStale,
@@ -13,6 +14,7 @@ import {
   stepToRoute,
   writeOnboardingLocalState,
 } from "@/lib/onboarding-persistence";
+import { isEmailAllowed } from "@/lib/access-control";
 import { supabase } from "@/lib/supabase";
 import { setCurrentUserStorageId } from "@/lib/user-storage";
 import { cn } from "@/lib/utils";
@@ -90,7 +92,7 @@ export default function HomePage() {
   const [password, setPassword] = useState("");
   const [showLoginError, setShowLoginError] = useState(false);
   const [loginErrorMessage, setLoginErrorMessage] = useState(
-    "로그인에 실패했어요. 이메일 또는 비밀번호를 다시 확인해 주세요."
+    "로그인에 실패했어요. 아이디 또는 비밀번호를 다시 확인해 주세요."
   );
   const [resumeRoute, setResumeRoute] = useState<string | null>(null);
   const [showResume, setShowResume] = useState(false);
@@ -106,6 +108,10 @@ export default function HomePage() {
       const user = data.session?.user;
 
       if (!user) return;
+      if (!isEmailAllowed(user.email)) {
+        await supabase.auth.signOut();
+        return;
+      }
       setCurrentUserStorageId(user.id);
 
       const metadata = user.user_metadata ?? {};
@@ -154,6 +160,13 @@ export default function HomePage() {
   const routeAfterEmailLogin = async () => {
     const { data } = await supabase.auth.getUser();
     if (data.user) setCurrentUserStorageId(data.user.id);
+    if (!isEmailAllowed(data.user?.email)) {
+      await supabase.auth.signOut();
+      setLoginErrorMessage("초대받은 아이디만 사용할 수 있어요.");
+      setShowLoginError(true);
+      window.setTimeout(() => setShowLoginError(false), 2600);
+      return;
+    }
     const metadata = data.user?.user_metadata ?? {};
     const completedOnboarding = metadata.onboarding_completed === true;
     const hasProfile =
@@ -177,8 +190,10 @@ export default function HomePage() {
   };
 
   const handleEmailLogin = async () => {
+    const authEmail = identifierToAuthEmail(email);
+
     if (!email.trim() || !password) {
-      setLoginErrorMessage("이메일과 비밀번호를 입력해 주세요.");
+      setLoginErrorMessage("아이디와 비밀번호를 입력해 주세요.");
       setShowLoginError(true);
       window.setTimeout(() => setShowLoginError(false), 2600);
       return;
@@ -187,7 +202,7 @@ export default function HomePage() {
     setIsSubmittingLogin(true);
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: authEmail,
       password,
     });
 
@@ -195,7 +210,7 @@ export default function HomePage() {
 
     if (error) {
       setLoginErrorMessage(
-        "로그인에 실패했어요. 이메일 또는 비밀번호를 다시 확인해 주세요."
+        "로그인에 실패했어요. 아이디 또는 비밀번호를 다시 확인해 주세요."
       );
       setShowLoginError(true);
       window.setTimeout(() => setShowLoginError(false), 2600);
@@ -390,9 +405,9 @@ export default function HomePage() {
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     className="h-11 w-full rounded-xl border border-border/80 bg-white px-4 text-sm text-primary outline-none transition focus:border-accent"
-                    placeholder="이메일"
-                    type="email"
-                    autoComplete="email"
+                    placeholder="아이디"
+                    type="text"
+                    autoComplete="username"
                   />
                   <input
                     value={password}
@@ -408,7 +423,7 @@ export default function HomePage() {
                     onClick={handleEmailLogin}
                     disabled={isSubmittingLogin}
                   >
-                    {isSubmittingLogin ? "로그인 중..." : "이메일로 로그인"}
+                    {isSubmittingLogin ? "로그인 중..." : "아이디로 로그인"}
                   </Button>
                 </div>
 

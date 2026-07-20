@@ -1,6 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { NextResponse } from "next/server";
 
+import { requireAllowedApiUser } from "@/lib/access-control";
+
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
@@ -104,6 +106,11 @@ function isTemporaryModelError(message: string) {
 }
 
 export async function POST(req: Request) {
+  const access = await requireAllowedApiUser(req);
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

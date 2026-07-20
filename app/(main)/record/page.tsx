@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import { compressImageForUpload } from "@/lib/onboarding-analysis-images";
 import { appendDiaryEntry, formatDateKey } from "@/lib/outfit-diary";
 import { FashionTipsLoader } from "@/components/blocks/fashion-tips-loader";
@@ -134,7 +135,7 @@ export default function RecordPage() {
             );
           }
 
-          const res = await fetch("/api/analyze-outfit", {
+          const res = await authenticatedFetch("/api/analyze-outfit", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

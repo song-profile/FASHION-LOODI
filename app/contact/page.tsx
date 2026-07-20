@@ -5,6 +5,7 @@ import { ArrowLeft, Send, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -45,7 +46,7 @@ export default function ContactPage() {
     setSending(true);
 
     try {
-      const response = await fetch("/api/contact-chat", {
+      const response = await authenticatedFetch("/api/contact-chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ messages: nextMessages }),
