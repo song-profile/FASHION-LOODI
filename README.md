@@ -16,6 +16,23 @@ LOODI는 사용자가 매일 입은 옷을 사진과 함께 기록하면 Gemini 
 | Google/아이디 로그인 | Supabase Auth 기반 Google 로그인과 아이디/비밀번호 로그인을 지원합니다. |
 | 접근 제한 | 허용된 이메일만 앱에 진입하고 AI API를 사용할 수 있도록 제한합니다. |
 
+## 주요 화면 미리보기
+
+| Home | AI Recommendation |
+| --- | --- |
+| <img src="./docs/assets/readme/home-recommendation.jpeg" width="260" alt="LOODI home screen with daily streak, level, weather and outfit recommendation" /> | <img src="./docs/assets/readme/recommendation-items.jpeg" width="260" alt="LOODI outfit recommendation item list" /> |
+| 홈 화면에서 기록 스트릭, 레벨, 현재 혜택을 확인하고 날씨 기반 오늘의 코디 추천을 받을 수 있습니다. | 추천 이유, 추천 컬러, 카테고리별 아이템을 함께 보여주며 쇼핑 탐색으로 이어질 수 있게 구성했습니다. |
+
+| AI Analysis | Timeline Detail |
+| --- | --- |
+| <img src="./docs/assets/readme/ai-analysis.jpeg" width="260" alt="LOODI AI outfit analysis result screen" /> | <img src="./docs/assets/readme/timeline-detail.jpeg" width="260" alt="LOODI timeline outfit detail screen" /> |
+| 착장 사진을 업로드하면 Gemini가 아이템과 색상을 분석하고 다이어리 저장 전 확인 화면을 제공합니다. | 저장된 착장은 날짜별 타임라인에서 사진, 날씨, 무드, 태그, 메모와 함께 상세 확인할 수 있습니다. |
+
+| Style DNA | Closet |
+| --- | --- |
+| <img src="./docs/assets/readme/style-dna.jpeg" width="260" alt="LOODI Style DNA distribution screen" /> | <img src="./docs/assets/readme/closet.jpeg" width="260" alt="LOODI closet item summary screen" /> |
+| 누적 기록을 기반으로 사용자의 스타일 분포를 계산하고 Casual, Vintage, Minimal 같은 취향 비율을 시각화합니다. | 기록에서 감지된 아이템을 카테고리별로 모아 옷장처럼 확인할 수 있습니다. |
+
 ## 사용 예시
 
 ### 1. 오늘의 룩 기록
