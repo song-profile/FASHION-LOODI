@@ -153,14 +153,14 @@ GEMINI_ANALYSIS_MODEL=
 특정 계정만 앱을 사용할 수 있게 하려면 Vercel 또는 `.env.local`에 다음처럼 설정합니다.
 
 ```env
-NEXT_PUBLIC_ALLOWED_EMAILS=consky0910@ajou.ac.kr
-ALLOWED_EMAILS=consky0910@ajou.ac.kr
+NEXT_PUBLIC_ALLOWED_EMAILS=owner@example.com
+ALLOWED_EMAILS=owner@example.com
 ```
 
 아이디/비밀번호 로그인은 내부적으로 Supabase Auth 이메일 형식으로 변환됩니다.
 
 ```txt
-consky0910 -> consky0910@users.loodi.app
+my-loodi-id -> my-loodi-id@users.loodi.app
 ```
 
 ## 배포
@@ -199,4 +199,3 @@ Confirm Email: OFF
 - Supabase Auth 기반 로그인
 - Gemini 기반 사진 분석 및 추천 API
 - 허용 이메일 기반 개인 접근 제한
-
