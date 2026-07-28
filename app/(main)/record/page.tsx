@@ -1,5 +1,6 @@
 "use client";
 
+import { Camera, ImagePlus, NotebookPen } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -185,9 +186,22 @@ export default function RecordPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold text-primary">Record Outfit</h1>
+      <section className="diary-surface rounded-lg border border-border px-4 py-4 shadow-soft">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <span className="diary-label">TODAY&apos;S PAGE</span>
+            <h1 className="mt-3 text-2xl font-semibold text-primary">Record Outfit</h1>
+            <p className="mt-1 text-sm text-primary/60">
+              사진과 짧은 메모로 오늘의 착장을 남겨요.
+            </p>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card text-accent shadow-soft">
+            <NotebookPen size={22} />
+          </div>
+        </div>
+      </section>
 
-      <Card>
+      <Card className="diary-surface">
         <CardHeader>
           <CardTitle>Step {step} / 3</CardTitle>
         </CardHeader>
@@ -213,17 +227,21 @@ export default function RecordPage() {
               />
 
               <div className="grid grid-cols-2 gap-2">
-                <Button onClick={() => cameraInputRef.current?.click()}>Take Photo</Button>
+                <Button onClick={() => cameraInputRef.current?.click()}>
+                  <Camera className="mr-2 h-4 w-4" />
+                  Take Photo
+                </Button>
                 <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                  <ImagePlus className="mr-2 h-4 w-4" />
                   Upload Photo
                 </Button>
               </div>
               {imagePreviewUrl ? (
-                <div className="space-y-2 rounded-2xl border border-border bg-white p-3">
+                <div className="space-y-2 rounded-lg border border-border bg-card p-3 shadow-soft">
                   <p className="text-sm font-medium text-primary">
                     Selected Photo
                   </p>
-                  <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-soft">
+                  <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-soft">
                     <Image
                       src={imagePreviewUrl}
                       alt="Selected outfit preview"
@@ -259,7 +277,7 @@ export default function RecordPage() {
               </p>
               {analyzing ? <FashionTipsLoader /> : null}
               {imagePreviewUrl ? (
-                <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-soft">
+                <div className="relative aspect-[4/5] overflow-hidden rounded-lg border border-border bg-soft shadow-soft">
                   <Image
                     src={imagePreviewUrl}
                     alt="Selected outfit preview"
@@ -269,7 +287,7 @@ export default function RecordPage() {
                   />
                 </div>
               ) : null}
-              <div className="rounded-2xl bg-soft p-4 text-sm text-primary">
+                <div className="rounded-lg border border-dashed border-border bg-soft/80 p-4 text-sm text-primary">
                 <p className="font-medium">Items</p>
                 <p>
                   {analyzing
@@ -302,7 +320,7 @@ export default function RecordPage() {
           {step === 3 && (
             <div className="space-y-4">
               {imagePreviewUrl ? (
-                <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-soft">
+                <div className="relative aspect-[4/5] overflow-hidden rounded-lg border border-border bg-soft shadow-soft">
                   <Image
                     src={imagePreviewUrl}
                     alt="Selected outfit preview"
@@ -315,7 +333,7 @@ export default function RecordPage() {
 
               <div>
                 <p className="mb-2 text-sm text-primary/70">Weather</p>
-                <div className="space-y-3 rounded-2xl border border-border bg-white p-3">
+                <div className="space-y-3 rounded-lg border border-border bg-card p-3">
                   <div className="flex gap-2 text-xl">
                     {weatherOptions.map((weather) => (
                       <button
@@ -432,7 +450,7 @@ export default function RecordPage() {
 
       {saved && (
         <div className="animate-pulse rounded-2xl bg-accent p-4 text-center text-sm font-semibold text-white">
-          +1 Style Record
+          +1 Diary Page
         </div>
       )}
     </div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChevronRight, MessageCircle } from "lucide-react";
+import { ChevronRight, LogOut, MessageCircle, Sparkles, Shirt } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,36 @@ const categoryIcons: Record<ClosetCategory, React.ComponentType<React.SVGProps<S
   Tops: TopsIcon,
   Bottoms: BottomsIcon,
   "Shoes & Accessories": ShoesIcon,
+};
+
+const categoryStyles: Record<
+  ClosetCategory,
+  { label: string; accent: string; surface: string; rail: string }
+> = {
+  Outerwear: {
+    label: "Outerwear",
+    accent: "bg-[#8d3f56]",
+    surface: "bg-[#8d3f56]/10",
+    rail: "bg-[#8d3f56]",
+  },
+  Tops: {
+    label: "Tops",
+    accent: "bg-[#2f6b5a]",
+    surface: "bg-[#2f6b5a]/10",
+    rail: "bg-[#2f6b5a]",
+  },
+  Bottoms: {
+    label: "Bottoms",
+    accent: "bg-[#243b6b]",
+    surface: "bg-[#243b6b]/10",
+    rail: "bg-[#243b6b]",
+  },
+  "Shoes & Accessories": {
+    label: "Shoes",
+    accent: "bg-[#d0923d]",
+    surface: "bg-[#d0923d]/12",
+    rail: "bg-[#d0923d]",
+  },
 };
 
 function normalizeItemCategory(category: string, name: string): ClosetCategory {
@@ -222,42 +252,84 @@ export default function ClosetPage() {
     router.replace("/");
   };
 
+  const totalItems = recordedCloset.reduce(
+    (sum, group) => sum + group.items.length,
+    0
+  );
+  const totalWears = recordedCloset.reduce(
+    (sum, group) =>
+      sum + group.items.reduce((itemSum, item) => itemSum + item.used, 0),
+    0
+  );
+
   return (
     <div className="space-y-5">
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-primary">Closet</h1>
-        <Button variant="outline" size="sm" onClick={signOut}>
-          로그아웃
-        </Button>
-      </header>
+      <section className="diary-surface rounded-lg border border-border px-4 py-4 shadow-soft">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <span className="diary-label">WARDROBE INDEX</span>
+            <h1 className="mt-3 text-2xl font-semibold text-primary">Closet</h1>
+            <p className="mt-1 text-sm text-primary/60">
+              기록에서 자주 등장한 아이템을 옷장처럼 정리했어요.
+            </p>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card text-accent shadow-soft">
+            <Shirt size={22} />
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-border bg-card/85 p-3">
+            <p className="text-[11px] font-semibold uppercase text-primary/45">
+              Pieces
+            </p>
+            <p className="mt-1 text-xl font-semibold text-primary">
+              {loading ? "-" : totalItems}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-card/85 p-3">
+            <p className="text-[11px] font-semibold uppercase text-primary/45">
+              Logged Wears
+            </p>
+            <p className="mt-1 text-xl font-semibold text-primary">
+              {loading ? "-" : totalWears}
+            </p>
+          </div>
+        </div>
+      </section>
 
-      <Card className="border-accent/30 bg-accent/5">
+      <Card className="diary-surface">
         <CardContent className="space-y-3 pt-5">
-          <p className="text-sm font-semibold text-primary">내 정보</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-primary">내 정보</p>
+            <Button variant="outline" size="sm" onClick={signOut} className="gap-1.5">
+              <LogOut size={14} />
+              로그아웃
+            </Button>
+          </div>
           {loading ? (
             <p className="text-sm text-primary/60">내 정보를 불러오는 중...</p>
           ) : profile ? (
-            <div className="grid gap-2 text-sm text-primary">
-              <div className="flex items-center justify-between gap-3">
+            <div className="grid gap-2 text-sm text-primary sm:grid-cols-3">
+              <div className="rounded-lg border border-border bg-card/80 p-3">
                 <span className="text-primary/60">성명</span>
-                <span className="font-medium">{profile.fullName}</span>
+                <p className="mt-1 font-medium">{profile.fullName}</p>
               </div>
-              <div className="flex items-center justify-between gap-3">
+              <div className="rounded-lg border border-border bg-card/80 p-3">
                 <span className="text-primary/60">성별</span>
-                <span className="font-medium">{profile.gender}</span>
+                <p className="mt-1 font-medium">{profile.gender}</p>
               </div>
-              <div className="flex items-center justify-between gap-3">
+              <div className="rounded-lg border border-border bg-card/80 p-3">
                 <span className="text-primary/60">생년월일</span>
-                <span className="font-medium">
+                <p className="mt-1 font-medium">
                   {formatBirthDate(profile.birthDate)}
-                </span>
+                </p>
               </div>
             </div>
           ) : null}
 
           <Link
             href="/contact"
-            className="mt-2 flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-3 text-sm text-primary transition hover:bg-soft"
+            className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-3 text-sm text-primary transition hover:bg-soft"
           >
             <span className="flex items-center gap-2">
               <MessageCircle size={16} className="text-accent" />
@@ -271,38 +343,71 @@ export default function ClosetPage() {
 
       {recordedCloset.map((group) => {
         const Icon = categoryIcons[group.category as ClosetCategory];
+        const style = categoryStyles[group.category as ClosetCategory];
+        const topUsed = Math.max(...group.items.map((item) => item.used), 1);
         return (
-        <Card key={group.category}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {Icon ? (
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-soft text-accent">
-                  <Icon className="h-[18px] w-[18px]" />
-                </span>
-              ) : null}
-              {group.category}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {group.items.length > 0 ? (
-              group.items.map((item) => (
-                <div
-                  key={`${group.category}-${item.name}`}
-                  className="flex items-center justify-between rounded-2xl bg-soft p-3"
-                >
-                  <p className="text-sm font-medium text-primary">
-                    {item.name}
-                  </p>
-                  <Badge>Saved {item.used} times</Badge>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-2xl bg-soft p-3 text-sm text-primary/55">
-                아직 Timeline 기록에서 발견된 아이템이 없어요.
+          <Card key={group.category} className="diary-surface overflow-hidden">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="flex items-center gap-2">
+                  {Icon ? (
+                    <span className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${style.surface} text-primary`}>
+                      <Icon className="h-5 w-5" />
+                    </span>
+                  ) : null}
+                  <span>
+                    {group.category}
+                    <span className="mt-0.5 block text-xs font-medium text-primary/45">
+                      {group.items.length} pieces
+                    </span>
+                  </span>
+                </CardTitle>
+                <span className={`h-8 w-2 rounded-full ${style.accent}`} />
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {group.items.length > 0 ? (
+                group.items.map((item, index) => (
+                  <div
+                    key={`${group.category}-${item.name}`}
+                    className="rounded-lg border border-border bg-card/90 p-3 shadow-[0_8px_20px_rgba(28,44,70,0.05)]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-sm bg-soft text-[11px] font-semibold text-primary/60">
+                            {index + 1}
+                          </span>
+                          <p className="truncate text-sm font-semibold text-primary">
+                            {item.name}
+                          </p>
+                        </div>
+                        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-soft">
+                          <div
+                            className={`h-full rounded-full ${style.rail}`}
+                            style={{
+                              width: `${Math.max(18, Math.round((item.used / topUsed) * 100))}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <Badge className="shrink-0 border border-border bg-soft text-primary">
+                        {item.used}회
+                      </Badge>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-lg border border-dashed border-border bg-soft/70 p-4 text-sm text-primary/55">
+                  <div className="mb-2 flex items-center gap-2 text-primary">
+                    <Sparkles size={15} className="text-accent" />
+                    <span className="font-semibold">{style.label} 비어 있음</span>
+                  </div>
+                  Timeline 기록에서 이 카테고리 아이템이 발견되면 자동으로 채워져요.
+                </div>
+              )}
+            </CardContent>
+          </Card>
         );
       })}
     </div>

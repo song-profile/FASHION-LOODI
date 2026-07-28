@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { BookOpen, Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -155,10 +155,23 @@ export default function TimelinePage() {
     : [];
 
   return (
-    <div className="space-y-5 relative">
-      <h1 className="text-2xl font-semibold text-primary">Timeline</h1>
+    <div className="relative space-y-5">
+      <section className="diary-surface rounded-lg border border-border px-4 py-4 shadow-soft">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <span className="diary-label">LOODI DIARY</span>
+            <h1 className="mt-3 text-2xl font-semibold text-primary">Timeline</h1>
+            <p className="mt-1 text-sm text-primary/60">
+              오늘의 옷, 날씨, 기분을 한 페이지에 모아봐요.
+            </p>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card text-accent shadow-soft">
+            <BookOpen size={22} />
+          </div>
+        </div>
+      </section>
 
-      <Card>
+      <Card className="diary-surface">
         <CardContent className="space-y-3 pt-5">
           <SimpleTabs
             tabs={[
@@ -171,7 +184,7 @@ export default function TimelinePage() {
         </CardContent>
       </Card>
 
-      <Card className={view === "calendar" ? "overflow-hidden" : undefined}>
+      <Card className={cn("diary-surface", view === "calendar" ? "overflow-hidden" : undefined)}>
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -237,13 +250,13 @@ export default function TimelinePage() {
         <CardContent>
           {view === "calendar" ? (
             <div className="space-y-3">
-              <div className="grid grid-cols-7 gap-1 rounded-2xl bg-soft px-2 py-2 text-center text-[11px] font-semibold uppercase text-primary/45">
+              <div className="grid grid-cols-7 gap-1 rounded-lg border border-border bg-card/75 px-2 py-2 text-center text-[10px] font-semibold uppercase text-primary/45">
                 {WEEKDAYS.map((label) => (
                   <div key={label}>{label}</div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-1.5 text-center">
+              <div className="grid grid-cols-7 gap-1 text-center">
                 {calendarDays.map(({ date, isCurrentMonth }) => {
                   const isSelected = selectedDate ? isSameDay(selectedDate, date) : false;
                   const isToday = isSameDay(new Date(), date);
@@ -259,14 +272,14 @@ export default function TimelinePage() {
                         setIsDetailOpen(true);
                       }}
                       className={cn(
-                        "relative flex h-12 flex-col items-center justify-center rounded-2xl border text-sm font-medium transition",
+                        "relative flex h-11 flex-col items-center justify-center rounded-lg border text-sm font-medium transition",
                         isCurrentMonth
-                          ? "border-border bg-white text-primary shadow-[0_4px_14px_rgba(27,42,74,0.04)] hover:border-accent/60"
+                          ? "border-border bg-card/90 text-primary shadow-[0_4px_12px_rgba(27,42,74,0.04)] hover:border-accent/50"
                           : "border-transparent bg-soft/45 text-primary/30",
-                        hasEntry && !isSelected && "bg-accent/5",
-                        isToday && !isSelected && "border-accent/60 ring-2 ring-accent/15",
+                        hasEntry && !isSelected && "border-highlight/30 bg-highlight/10",
+                        isToday && !isSelected && "border-primary/50 ring-2 ring-primary/10",
                         isSelected &&
-                          "border-primary bg-primary text-white shadow-[0_10px_24px_rgba(27,42,74,0.22)]",
+                          "border-primary bg-primary text-white shadow-[0_10px_20px_rgba(27,42,74,0.18)]",
                       )}
                     >
                       <span>{date.getDate()}</span>
@@ -285,14 +298,12 @@ export default function TimelinePage() {
                       {hasEntry ? (
                         <span
                           className={cn(
-                            "absolute bottom-1 left-1/2 flex h-4 w-4 -translate-x-1/2 items-center justify-center rounded-full text-[10px] font-semibold leading-none",
+                            "absolute bottom-1.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full",
                             isSelected
-                              ? "bg-white text-primary"
-                              : "bg-accent text-white",
+                              ? "bg-white"
+                              : "bg-highlight",
                           )}
-                        >
-                          ✓
-                        </span>
+                        />
                       ) : null}
                     </button>
                   );
@@ -324,7 +335,7 @@ export default function TimelinePage() {
                       setSelectedDate(new Date(y, m - 1, d));
                       setIsDetailOpen(true);
                     }}
-                    className="relative h-28 overflow-hidden rounded-xl"
+                    className="relative h-28 overflow-hidden rounded-lg border border-card bg-card shadow-soft"
                   >
                     {cover ? (
                       <Image
@@ -583,7 +594,7 @@ export default function TimelinePage() {
                 })}
               </div>
             ) : (
-              <p className="mt-4 text-sm text-primary/55">
+              <p className="mt-4 rounded-lg border border-dashed border-border bg-soft/70 p-4 text-sm text-primary/55">
                 이 날에는 기록이 없어요.
               </p>
             )}

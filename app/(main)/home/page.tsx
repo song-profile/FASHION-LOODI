@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Sparkles,
-  CalendarDays,
   Flame,
   Trophy,
   RefreshCw,
@@ -255,6 +254,34 @@ type RecommendItem = {
   name: string;
   searchKeyword: string;
 };
+
+function ShoppingPlatformMark({ id }: { id: string }) {
+  if (id === "musinsa") {
+    return (
+      <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-primary text-[10px] font-black text-white">
+        M
+      </span>
+    );
+  }
+
+  if (id === "kream") {
+    return (
+      <span className="rounded-sm border border-primary/15 bg-white px-1.5 py-0.5 text-[9px] font-black leading-none text-primary">
+        KREAM
+      </span>
+    );
+  }
+
+  if (id === "ably") {
+    return (
+      <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-[#ff5160] text-[10px] font-black text-white">
+        A
+      </span>
+    );
+  }
+
+  return null;
+}
 
 const RECOMMENDATION_CACHE_KEY = "loodi_today_outfit_recommendation";
 const RECOMMENDATION_CATEGORY_ORDER: Record<string, number> = {
@@ -735,32 +762,40 @@ export default function HomeTabPage() {
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>Today Outfit Recommendation</CardTitle>
-          <button
-            type="button"
-            onClick={fetchRecommendation}
-            disabled={recommendation.status === "loading"}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-primary/60 hover:text-primary disabled:opacity-50"
-            aria-label="다시 추천 받기"
-          >
-            <RefreshCw
-              size={14}
-              className={recommendation.status === "loading" ? "animate-spin" : ""}
-            />
-          </button>
+      <Card className="diary-surface overflow-hidden">
+        <CardHeader>
+          <div>
+            <p className="text-[11px] font-semibold uppercase text-primary/45">
+              Daily Styling
+            </p>
+            <CardTitle className="mt-1 text-xl">Today Outfit Recommendation</CardTitle>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-primary/70">
-            {weather.status === "loading"
-              ? "Weather: 현재 위치 확인 중..."
-              : weather.status === "success"
-                ? `Weather: ${Math.round(weather.temperature)}°C ${weather.icon}${
-                    weather.location ? ` · ${weather.location}` : ""
-                  }`
-                : weather.message}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card/80 px-3 py-2">
+            <p className="text-sm font-medium text-primary/70">
+              {weather.status === "loading"
+                ? "Weather: 현재 위치 확인 중..."
+                : weather.status === "success"
+                  ? `Weather: ${Math.round(weather.temperature)}°C ${weather.icon}${
+                      weather.location ? ` · ${weather.location}` : ""
+                    }`
+                  : weather.message}
+            </p>
+            <button
+              type="button"
+              onClick={fetchRecommendation}
+              disabled={recommendation.status === "loading"}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-soft text-primary/60 transition hover:bg-accent hover:text-white disabled:opacity-50"
+              aria-label="다시 추천 받기"
+              title="다시 추천 받기"
+            >
+              <RefreshCw
+                size={14}
+                className={recommendation.status === "loading" ? "animate-spin" : ""}
+              />
+            </button>
+          </div>
 
           {recommendation.status === "loading" || recommendation.status === "idle" ? (
             <div className="space-y-2">
@@ -783,9 +818,9 @@ export default function HomeTabPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="rounded-2xl bg-soft p-4 text-sm text-primary">
+              <div className="rounded-lg border border-border bg-soft/80 p-4 text-sm text-primary">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium">왜 이 코디?</p>
+                  <p className="font-semibold">왜 이 코디?</p>
                   <p className="shrink-0 text-xs text-primary/45">
                     {formatRelativeTime(recommendation.createdAt)}
                   </p>
@@ -806,14 +841,21 @@ export default function HomeTabPage() {
                 {recommendation.items.map((item, idx) => (
                   <div
                     key={`${item.category}-${idx}`}
-                    className="rounded-2xl border border-border bg-white px-4 py-3"
+                    className="group rounded-lg border border-border bg-card/95 px-4 py-3 shadow-[0_8px_20px_rgba(28,44,70,0.05)] transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-soft"
                   >
-                    <p className="text-[11px] font-medium text-primary/55">
-                      {item.category}
-                    </p>
-                    <p className="truncate text-sm font-medium text-primary">
-                      {item.name}
-                    </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase text-primary/45">
+                          {item.category}
+                        </p>
+                        <p className="truncate text-base font-semibold text-primary">
+                          {item.name}
+                        </p>
+                      </div>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-soft text-xs font-semibold text-primary/55 group-hover:bg-accent group-hover:text-white">
+                        {idx + 1}
+                      </span>
+                    </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {shoppingPlatforms.map((platform) => (
                         <a
@@ -821,8 +863,9 @@ export default function HomeTabPage() {
                           href={platform.buildUrl(item.searchKeyword, shoppingGender)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 rounded-full bg-soft px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-accent hover:text-white"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-soft px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-accent hover:text-white"
                         >
+                          <ShoppingPlatformMark id={platform.id} />
                           {platform.label}
                           <ExternalLink size={11} />
                         </a>
@@ -836,29 +879,53 @@ export default function HomeTabPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="diary-surface overflow-hidden">
         <CardHeader>
-          <CardTitle>Style Insight</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="rounded-2xl bg-soft p-4 text-sm">
-            <p className="text-primary/60">
-              Last 7 Days · 사진 기록 {styleInsight.entryCount}개
+          <div>
+            <p className="text-[11px] font-semibold uppercase text-primary/45">
+              Last 7 Days
             </p>
+            <CardTitle className="mt-1 text-xl">Style Insight</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-border bg-card/85 p-4 text-sm shadow-[0_10px_24px_rgba(28,44,70,0.06)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase text-primary/45">
+                  사진 기록
+                </p>
+                <p className="mt-1 text-2xl font-semibold text-primary">
+                  {styleInsight.entryCount}개
+                </p>
+              </div>
+              <span className="rounded-lg border border-border bg-soft px-3 py-2 text-sm font-semibold text-primary/75">
+                {styleInsight.topLabel ?? "No Signal"}
+              </span>
+            </div>
             {styleInsight.entryCount === 0 ? (
-              <p className="mt-1 font-medium text-primary">
+              <p className="mt-3 font-medium text-primary">
                 아직 기록된 사진이 없어요
               </p>
             ) : styleInsight.topLabel ? (
-              <div className="mt-2 space-y-2">
-                <p className="font-medium text-primary">
-                  {styleInsight.topLabel} {styleInsight.trend}
+              <div className="mt-4 space-y-3">
+                <p className="font-semibold text-primary">
+                  {styleInsight.topLabel} 무드가 최근 가장 강해요 {styleInsight.trend}
                 </p>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="space-y-2">
                   {styleInsight.styles.map(({ style, percentage }) => (
-                    <Badge key={style} className="bg-white text-[11px]">
-                      {style} {percentage}%
-                    </Badge>
+                    <div key={style} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-primary/70">{style}</span>
+                        <span className="font-semibold text-primary">{percentage}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-soft">
+                        <div
+                          className="h-full rounded-full bg-primary/70"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -868,7 +935,11 @@ export default function HomeTabPage() {
               </p>
             )}
           </div>
-          <Link href="/dna"><Button variant="outline" className="w-full gap-2"><Sparkles size={16} /> View Style DNA</Button></Link>
+          <Link href="/dna">
+            <Button variant="outline" className="w-full gap-2">
+              <Sparkles size={16} /> View Style DNA
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 
@@ -907,15 +978,6 @@ export default function HomeTabPage() {
         </CardContent>
       </Card>
 
-      <Card className="bg-soft">
-        <CardContent className="flex items-center justify-between py-4">
-          <div>
-            <p className="text-sm font-medium text-primary">Reminder</p>
-            <p className="text-xs text-primary/70">Did you record your outfit today?</p>
-          </div>
-          <CalendarDays size={18} className="text-accent" />
-        </CardContent>
-      </Card>
     </div>
   );
 }

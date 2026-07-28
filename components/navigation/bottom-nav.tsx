@@ -18,7 +18,7 @@ export function BottomNav() {
 
   return (
     <div className="fixed inset-x-0 bottom-4 z-50 px-4">
-      <div className="mx-auto flex max-w-md items-end justify-between rounded-3xl border border-border bg-card/95 p-3 shadow-soft backdrop-blur">
+      <div className="mx-auto flex max-w-md items-end justify-between rounded-2xl border border-border bg-card/95 p-3 shadow-soft backdrop-blur">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = pathname === tab.href;
@@ -28,7 +28,7 @@ export function BottomNav() {
               <Link
                 key={tab.href}
                 href={tab.href}
-                className="-mt-8 inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg"
+                className="-mt-8 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-white shadow-lg rotate-3"
               >
                 <Icon size={22} />
               </Link>
@@ -39,7 +39,7 @@ export function BottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={cn("flex flex-col items-center gap-1 px-2", active ? "text-primary" : "text-primary/50")}
+              className={cn("flex flex-col items-center gap-1 rounded-lg px-2 py-1", active ? "bg-secondary text-primary" : "text-primary/50")}
             >
               <Icon size={18} />
               <span className="text-[11px] font-medium">{tab.label}</span>
