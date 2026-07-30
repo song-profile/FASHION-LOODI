@@ -120,16 +120,15 @@ export function diaryPhotoToDataUrl(photo: DiaryPhoto): string {
 
 export function computeStreakDays(entries: DiaryEntry[]): number {
   if (entries.length === 0) return 0;
-  const dateSet = new Set(entries.map((entry) => entry.date));
+  const dateSet = new Set(
+    entries
+      .map((entry) => entry.date)
+      .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+  );
 
   const today = new Date();
   let streak = 0;
   const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-  // Allow today to be empty: start from yesterday if today missing.
-  if (!dateSet.has(formatDateKey(cursor))) {
-    cursor.setDate(cursor.getDate() - 1);
-  }
 
   while (dateSet.has(formatDateKey(cursor))) {
     streak += 1;
@@ -140,7 +139,7 @@ export function computeStreakDays(entries: DiaryEntry[]): number {
 
 export type StreakLevel = {
   level: number;
-  totalEntries: number;
+  totalDays: number;
   streak: number;
   nextLevelAt: number;
   remaining: number;
@@ -156,7 +155,11 @@ const LEVEL_PERKS = [
 ];
 
 export function computeStreakLevel(entries: DiaryEntry[]): StreakLevel {
-  const total = entries.length;
+  const total = new Set(
+    entries
+      .map((entry) => entry.date)
+      .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+  ).size;
   const streak = computeStreakDays(entries);
 
   let level = 1;
@@ -173,7 +176,7 @@ export function computeStreakLevel(entries: DiaryEntry[]): StreakLevel {
 
   return {
     level,
-    totalEntries: total,
+    totalDays: total,
     streak,
     nextLevelAt,
     remaining,

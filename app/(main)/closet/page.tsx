@@ -1,9 +1,24 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ChevronRight, LogOut, MessageCircle, Sparkles, Shirt } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Cake,
+  Camera,
+  ChevronRight,
+  Copy,
+  Grid3X3,
+  IdCard,
+  Link2,
+  LogOut,
+  MessageCircle,
+  Share2,
+  Shirt,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,23 +29,32 @@ import {
   ShoesIcon,
   TopsIcon,
 } from "@/components/icons/category-icons";
-import { readDiaryEntries } from "@/lib/outfit-diary";
+import {
+  diaryPhotoToDataUrl,
+  readDiaryEntries,
+  type DiaryEntry,
+} from "@/lib/outfit-diary";
 import { supabase } from "@/lib/supabase";
 import {
   clearCurrentUserStorageId,
   setCurrentUserStorageId,
+  scopedLocalStorageKey,
 } from "@/lib/user-storage";
 
 type Profile = {
+  nickname: string;
   fullName: string;
   gender: string;
   birthDate: string;
+  email: string;
 };
 
 type RecordedClosetGroup = {
   category: string;
   items: { name: string; used: number }[];
 };
+
+const PROFILE_PHOTO_STORAGE_KEY = "loodi_profile_photo";
 
 const closetCategories = [
   "Outerwear",
@@ -158,13 +182,38 @@ function formatBirthDate(value: string) {
   }).format(date);
 }
 
+function calculateAge(value: string) {
+  if (!value) return "-";
+  const birthDate = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(birthDate.getTime())) return "-";
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < birthDate.getDate())
+  ) {
+    age -= 1;
+  }
+
+  return `${age}세`;
+}
+
 export default function ClosetPage() {
   const router = useRouter();
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [recordedCloset, setRecordedCloset] = useState<RecordedClosetGroup[]>(
     []
   );
+  const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeProfilePanel, setActiveProfilePanel] = useState<
+    "manage" | "share" | null
+  >(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -179,6 +228,12 @@ export default function ClosetPage() {
       setCurrentUserStorageId(user.id);
       const metadata = user.user_metadata ?? {};
       setProfile({
+        nickname:
+          typeof metadata.nickname === "string" && metadata.nickname
+            ? metadata.nickname
+            : typeof metadata.login_id === "string" && metadata.login_id
+              ? metadata.login_id
+              : "-",
         fullName:
           typeof metadata.full_name === "string" && metadata.full_name
             ? metadata.full_name
@@ -191,7 +246,14 @@ export default function ClosetPage() {
           typeof metadata.birth_date === "string" && metadata.birth_date
             ? metadata.birth_date
             : "",
+        email: user.email ?? "-",
       });
+      setDiaryEntries(readDiaryEntries());
+      setProfilePhotoUrl(
+        window.localStorage.getItem(
+          scopedLocalStorageKey(PROFILE_PHOTO_STORAGE_KEY)
+        ) ?? ""
+      );
       setLoading(false);
     };
 
@@ -252,6 +314,29 @@ export default function ClosetPage() {
     router.replace("/");
   };
 
+  const saveProfilePhoto = (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (!result) return;
+      window.localStorage.setItem(
+        scopedLocalStorageKey(PROFILE_PHOTO_STORAGE_KEY),
+        result
+      );
+      setProfilePhotoUrl(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeProfilePhoto = () => {
+    window.localStorage.removeItem(
+      scopedLocalStorageKey(PROFILE_PHOTO_STORAGE_KEY)
+    );
+    setProfilePhotoUrl("");
+  };
+
   const totalItems = recordedCloset.reduce(
     (sum, group) => sum + group.items.length,
     0
@@ -261,6 +346,45 @@ export default function ClosetPage() {
       sum + group.items.reduce((itemSum, item) => itemSum + item.used, 0),
     0
   );
+  const shareEntries = diaryEntries
+    .filter((entry) => entry.photos.length > 0)
+    .slice(0, 6);
+  const displayName =
+    profile?.nickname && profile.nickname !== "-"
+      ? profile.nickname
+      : "LOODI 사용자";
+  const realName =
+    profile?.fullName && profile.fullName !== "-" ? profile.fullName : "";
+  const shareTitle = `${displayName}님의 LOODI 스타일 기록`;
+  const shareDescription = `${diaryEntries.length}개의 기록과 ${totalItems}개의 아이템으로 만든 스타일 아카이브`;
+
+  const shareProfile = async () => {
+    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+    const shareText = `${shareTitle}\n${shareDescription}`;
+
+    if (
+      typeof navigator !== "undefined" &&
+      "share" in navigator &&
+      typeof navigator.share === "function"
+    ) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareDescription,
+          url: shareUrl,
+        });
+        return;
+      } catch {
+        // Continue to clipboard fallback.
+      }
+    }
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 1800);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -298,31 +422,202 @@ export default function ClosetPage() {
       </section>
 
       <Card className="diary-surface">
-        <CardContent className="space-y-3 pt-5">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-primary">내 정보</p>
-            <Button variant="outline" size="sm" onClick={signOut} className="gap-1.5">
-              <LogOut size={14} />
-              로그아웃
+        <CardContent className="space-y-4 pt-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="relative h-20 w-20 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-border bg-soft text-primary/30 transition hover:border-accent"
+                  aria-label="프로필 사진 설정"
+                >
+                  {profilePhotoUrl ? (
+                    <Image
+                      src={profilePhotoUrl}
+                      alt="프로필 사진"
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  ) : (
+                    <UserRound size={42} strokeWidth={1.5} />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-white text-primary shadow-soft"
+                  aria-label="프로필 사진 변경"
+                >
+                  <Camera size={14} />
+                </button>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) saveProfilePhoto(file);
+                    event.target.value = "";
+                  }}
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-2xl font-semibold tracking-tight text-primary">
+                  {loading ? "..." : displayName}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={signOut}
+              aria-label="로그아웃"
+            >
+              <LogOut size={16} />
             </Button>
           </div>
+
+          <p className="text-xl font-semibold text-primary">
+            {loading ? "내 정보" : realName || displayName}
+          </p>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant={activeProfilePanel === "manage" ? "default" : "outline"}
+              className="h-12 gap-2 rounded-lg text-base"
+              onClick={() =>
+                setActiveProfilePanel((current) =>
+                  current === "manage" ? null : "manage"
+                )
+              }
+            >
+              <IdCard size={18} />
+              프로필 관리
+            </Button>
+            <Button
+              variant={activeProfilePanel === "share" ? "default" : "outline"}
+              className="h-12 gap-2 rounded-lg text-base"
+              onClick={() =>
+                setActiveProfilePanel((current) =>
+                  current === "share" ? null : "share"
+                )
+              }
+            >
+              <Share2 size={18} />
+              프로필 공유
+            </Button>
+          </div>
+
           {loading ? (
             <p className="text-sm text-primary/60">내 정보를 불러오는 중...</p>
-          ) : profile ? (
-            <div className="grid gap-2 text-sm text-primary sm:grid-cols-3">
-              <div className="rounded-lg border border-border bg-card/80 p-3">
-                <span className="text-primary/60">성명</span>
-                <p className="mt-1 font-medium">{profile.fullName}</p>
+          ) : activeProfilePanel === "manage" && profile ? (
+            <div className="space-y-3 rounded-lg border border-border bg-card/80 p-3">
+              <div className="grid grid-cols-2 gap-2 text-sm text-primary">
+                <div className="rounded-lg bg-soft p-3">
+                  <span className="flex items-center gap-1.5 text-primary/55">
+                    <UserRound size={14} />
+                    닉네임
+                  </span>
+                  <p className="mt-1 font-semibold">{profile.nickname}</p>
+                </div>
+                <div className="rounded-lg bg-soft p-3">
+                  <span className="text-primary/55">이름</span>
+                  <p className="mt-1 font-semibold">{profile.fullName}</p>
+                </div>
+                <div className="rounded-lg bg-soft p-3">
+                  <span className="flex items-center gap-1.5 text-primary/55">
+                    <Cake size={14} />
+                    나이
+                  </span>
+                  <p className="mt-1 font-semibold">
+                    {calculateAge(profile.birthDate)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-soft p-3">
+                  <span className="text-primary/55">성별</span>
+                  <p className="mt-1 font-semibold">{profile.gender}</p>
+                </div>
               </div>
-              <div className="rounded-lg border border-border bg-card/80 p-3">
-                <span className="text-primary/60">성별</span>
-                <p className="mt-1 font-medium">{profile.gender}</p>
-              </div>
-              <div className="rounded-lg border border-border bg-card/80 p-3">
-                <span className="text-primary/60">생년월일</span>
-                <p className="mt-1 font-medium">
+              <div className="rounded-lg bg-soft p-3 text-sm text-primary">
+                <span className="text-primary/55">생년월일</span>
+                <p className="mt-1 font-semibold">
                   {formatBirthDate(profile.birthDate)}
                 </p>
+              </div>
+              <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-primary/55">
+                계정: {profile.email}
+              </div>
+              <Link
+                href="/profile/setup?next=%2Fcloset&edit=1"
+                className="flex h-10 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-white"
+              >
+                이름과 개인정보 수정
+              </Link>
+              {profilePhotoUrl ? (
+                <button
+                  type="button"
+                  onClick={removeProfilePhoto}
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm font-medium text-primary/70"
+                >
+                  프로필 사진 삭제
+                </button>
+              ) : null}
+            </div>
+          ) : activeProfilePanel === "share" ? (
+            <div className="space-y-3 rounded-lg border border-border bg-card/80 p-3">
+              <div className="rounded-lg border border-border bg-white p-3 shadow-[0_8px_20px_rgba(28,44,70,0.05)]">
+                <div className="flex items-center gap-2">
+                  <Grid3X3 size={16} className="text-accent" />
+                  <p className="text-sm font-semibold text-primary">
+                    공유 미리보기
+                  </p>
+                </div>
+                <p className="mt-2 text-base font-semibold text-primary">
+                  {shareTitle}
+                </p>
+                <p className="mt-1 text-xs text-primary/55">
+                  {shareDescription}
+                </p>
+                {shareEntries.length > 0 ? (
+                  <div className="mt-3 grid grid-cols-3 gap-1.5">
+                    {shareEntries.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="relative aspect-square overflow-hidden rounded-md bg-soft"
+                      >
+                        <Image
+                          src={diaryPhotoToDataUrl(entry.photos[0])}
+                          alt={`공유 룩 ${entry.date}`}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-lg border border-dashed border-border bg-soft/70 p-4 text-xs text-primary/55">
+                    공유할 기록이 아직 없어요. Record에서 사진을 저장하면 Grid
+                    View로 일부만 보여줄 수 있어요.
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button className="gap-2 rounded-lg" onClick={shareProfile}>
+                  <Link2 size={16} />
+                  카카오톡/공유
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2 rounded-lg"
+                  onClick={shareProfile}
+                >
+                  <Copy size={16} />
+                  {shareCopied ? "복사됨" : "링크 복사"}
+                </Button>
               </div>
             </div>
           ) : null}

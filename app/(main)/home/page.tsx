@@ -743,7 +743,7 @@ export default function HomeTabPage() {
                       width: `${Math.min(
                         100,
                         Math.round(
-                          (streakLevel.totalEntries / Math.max(1, streakLevel.nextLevelAt)) * 100,
+                          (streakLevel.totalDays / Math.max(1, streakLevel.nextLevelAt)) * 100,
                         ),
                       )}%`,
                     }}

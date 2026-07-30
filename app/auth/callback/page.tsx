@@ -38,6 +38,8 @@ function AuthCallbackContent() {
       const metadata = data.user?.user_metadata ?? {};
       const completedOnboarding = metadata.onboarding_completed === true;
       const hasProfile =
+        typeof metadata.nickname === "string" &&
+        metadata.nickname.trim().length > 0 &&
         typeof metadata.full_name === "string" &&
         metadata.full_name.trim().length > 0 &&
         typeof metadata.gender === "string" &&

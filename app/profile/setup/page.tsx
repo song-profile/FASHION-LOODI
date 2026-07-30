@@ -20,6 +20,7 @@ function todayDateValue() {
 function ProfileSetupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [nickname, setNickname] = useState("");
   const [fullName, setFullName] = useState("");
   const [gender, setGender] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -32,8 +33,12 @@ function ProfileSetupContent() {
       const { data } = await supabase.auth.getUser();
       const metadata = data.user?.user_metadata;
       const nextPath = searchParams.get("next") ?? "/home";
+      const isEditMode = searchParams.get("edit") === "1";
 
       if (
+        !isEditMode &&
+        typeof metadata?.nickname === "string" &&
+        metadata.nickname.trim().length > 0 &&
         typeof metadata?.full_name === "string" &&
         metadata.full_name.trim().length > 0 &&
         typeof metadata?.gender === "string" &&
@@ -43,6 +48,12 @@ function ProfileSetupContent() {
       ) {
         router.replace(nextPath);
         return;
+      }
+
+      if (typeof metadata?.nickname === "string") {
+        setNickname(metadata.nickname);
+      } else if (typeof metadata?.login_id === "string") {
+        setNickname(metadata.login_id);
       }
 
       if (typeof metadata?.full_name === "string") {
@@ -61,8 +72,8 @@ function ProfileSetupContent() {
   }, [router, searchParams]);
 
   const saveProfile = async () => {
-    if (!fullName.trim() || !gender || !birthDate) {
-      setError("성명, 성별, 생년월일을 모두 입력해 주세요.");
+    if (!nickname.trim() || !fullName.trim() || !gender || !birthDate) {
+      setError("닉네임, 이름, 성별, 생년월일을 모두 입력해 주세요.");
       return;
     }
 
@@ -76,6 +87,7 @@ function ProfileSetupContent() {
 
     const { error: updateError } = await supabase.auth.updateUser({
       data: {
+        nickname: nickname.trim(),
         full_name: fullName.trim(),
         gender,
         birth_date: birthDate,
@@ -100,17 +112,34 @@ function ProfileSetupContent() {
             Profile
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-primary">
-            내 정보를 입력해 주세요
+            이름이나 닉네임을 정해 주세요
           </h1>
+          <p className="text-sm leading-relaxed text-primary/60">
+            닉네임은 내 정보 화면 맨 위에 표시되고, 이름은 프로필 관리에서
+            개인정보로 따로 보여줘요.
+          </p>
         </div>
 
         <div className="space-y-4">
           <label className="block space-y-2">
-            <span className="text-sm font-medium text-primary">성명</span>
+            <span className="text-sm font-medium text-primary">
+              닉네임
+            </span>
+            <Input
+              value={nickname}
+              onChange={(event) => setNickname(event.target.value)}
+              placeholder="예: songsong"
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-primary">
+              이름
+            </span>
             <Input
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
-              placeholder="홍길동"
+              placeholder="예: 송주영"
             />
           </label>
 
@@ -148,7 +177,7 @@ function ProfileSetupContent() {
         {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
         <Button className="h-11 w-full" onClick={saveProfile} disabled={saving}>
-          {saving ? "저장 중..." : "저장하고 시작하기"}
+          {saving ? "저장 중..." : "저장하기"}
         </Button>
       </div>
     </main>

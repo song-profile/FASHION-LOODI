@@ -39,7 +39,7 @@ const valueCards = [
 
 function GoogleMark() {
   return (
-    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-soft">
+    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white">
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
         <path
           fill="#4285F4"
@@ -117,6 +117,8 @@ export default function HomePage() {
       const metadata = user.user_metadata ?? {};
       const completedOnboarding = metadata.onboarding_completed === true;
       const hasProfile =
+        typeof metadata.nickname === "string" &&
+        metadata.nickname.trim().length > 0 &&
         typeof metadata.full_name === "string" &&
         metadata.full_name.trim().length > 0 &&
         typeof metadata.gender === "string" &&
@@ -170,6 +172,8 @@ export default function HomePage() {
     const metadata = data.user?.user_metadata ?? {};
     const completedOnboarding = metadata.onboarding_completed === true;
     const hasProfile =
+      typeof metadata.nickname === "string" &&
+      metadata.nickname.trim().length > 0 &&
       typeof metadata.full_name === "string" &&
       metadata.full_name.trim().length > 0 &&
       typeof metadata.gender === "string" &&
@@ -339,8 +343,7 @@ export default function HomePage() {
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/80 bg-background/95 px-4 py-4 backdrop-blur">
         <div className="mx-auto w-full max-w-md space-y-3">
           <Button
-            variant="outline"
-            className="h-11 w-full border-border bg-card text-primary"
+            className="h-12 w-full rounded-lg bg-primary text-base font-bold text-white hover:bg-primary/90"
             onClick={() => router.push("/signup")}
           >
             시작하기
@@ -348,9 +351,9 @@ export default function HomePage() {
           <button
             type="button"
             onClick={openLogin}
-            className="flex h-11 w-full items-center justify-center rounded-2xl border border-border bg-card text-sm font-medium text-muted-foreground transition hover:border-accent/35 hover:text-accent"
+            className="flex h-12 w-full items-center justify-center rounded-lg border border-[#d7dce5] bg-white text-sm font-semibold text-primary transition hover:border-primary"
           >
-            이미 계정이 있어요
+            로그인
           </button>
         </div>
       </div>
@@ -372,24 +375,28 @@ export default function HomePage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ duration: 0.26, ease: "easeOut" }}
-              className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-white px-4 pb-7 pt-5"
+              className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-white px-5 pb-7 pt-4"
             >
-              <div className="mx-auto w-full max-w-md space-y-4">
-                <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.2em] text-primary/45">
-                    Login
+              <div className="mx-auto w-full max-w-md">
+                <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-primary/12" />
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary/40">
+                    LOODI
                   </p>
-                  <h3 className="text-xl font-semibold tracking-tight text-primary">
-                    Welcome back to LOODI
+                  <h3 className="mt-5 text-[26px] font-bold tracking-normal text-primary">
+                    로그인
                   </h3>
+                  <p className="mt-2 text-sm text-primary/55">
+                    기록해둔 스타일 다이어리로 바로 돌아가요.
+                  </p>
                 </div>
 
-                <div className="grid gap-2">
+                <div className="mt-7 grid gap-2">
                   <button
                     type="button"
                     onClick={handleGoogleLogin}
                     disabled={isSubmittingGoogle}
-                    className="flex h-11 items-center justify-between rounded-xl border border-border/80 px-4 text-sm font-medium text-primary disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-13 items-center justify-between rounded-lg border border-[#d7dce5] px-4 text-sm font-semibold text-primary transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <span>
                       {isSubmittingGoogle
@@ -400,30 +407,47 @@ export default function HomePage() {
                   </button>
                 </div>
 
-                <div className="space-y-2">
+                <div className="flex items-center gap-3 py-5">
+                  <span className="h-px flex-1 bg-[#eceef2]" />
+                  <span className="text-[11px] font-medium text-primary/35">
+                    또는
+                  </span>
+                  <span className="h-px flex-1 bg-[#eceef2]" />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block space-y-2">
+                    <span className="text-xs font-semibold text-primary/70">
+                      아이디
+                    </span>
                   <input
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-border/80 bg-white px-4 text-sm text-primary outline-none transition focus:border-accent"
-                    placeholder="아이디"
+                    className="h-13 w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-[15px] text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
+                    placeholder="아이디 입력"
                     type="text"
                     autoComplete="username"
                   />
+                  </label>
+                  <label className="block space-y-2">
+                    <span className="text-xs font-semibold text-primary/70">
+                      비밀번호
+                    </span>
                   <input
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-border/80 bg-white px-4 text-sm text-primary outline-none transition focus:border-accent"
-                    placeholder="비밀번호"
+                    className="h-13 w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-[15px] text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
+                    placeholder="비밀번호 입력"
                     type="password"
                     autoComplete="current-password"
                   />
+                  </label>
                   <Button
-                    variant="outline"
-                    className="h-11 w-full"
+                    className="h-13 w-full rounded-lg bg-primary text-base font-bold text-white hover:bg-primary/90"
                     onClick={handleEmailLogin}
                     disabled={isSubmittingLogin}
                   >
-                    {isSubmittingLogin ? "로그인 중..." : "아이디로 로그인"}
+                    {isSubmittingLogin ? "로그인 중..." : "로그인"}
                   </Button>
                 </div>
 
@@ -433,9 +457,9 @@ export default function HomePage() {
                     setAuthOpen(false);
                     router.push("/signup");
                   }}
-                  className="w-full text-center text-sm text-primary/70 underline-offset-4 hover:underline"
+                  className="mt-4 w-full text-center text-sm font-medium text-primary/55"
                 >
-                  처음이신가요? 시작하기
+                  처음이신가요? 회원가입
                 </button>
               </div>
             </motion.div>

@@ -4,19 +4,19 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isEmailAllowed } from "@/lib/access-control";
 import { identifierToAuthEmail } from "@/lib/auth-identifier";
 import { clearOnboardingLocalState } from "@/lib/onboarding-persistence";
 import { clearSurveyDraft } from "@/lib/onboarding-survey-draft";
 import { supabase } from "@/lib/supabase";
 import { setCurrentUserStorageId } from "@/lib/user-storage";
+import { cn } from "@/lib/utils";
 
-type AuthMode = "signup" | "login" | null;
+type AuthMode = "signup" | "login";
 
 function GoogleMark() {
   return (
-    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-soft">
+    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white">
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
         <path
           fill="#4285F4"
@@ -41,7 +41,7 @@ function GoogleMark() {
 
 export default function SignupPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>(null);
+  const [mode, setMode] = useState<AuthMode>("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -70,6 +70,8 @@ export default function SignupPage() {
     const metadata = data.user?.user_metadata ?? {};
     const completedOnboarding = metadata.onboarding_completed === true;
     const hasProfile =
+      typeof metadata.nickname === "string" &&
+      metadata.nickname.trim().length > 0 &&
       typeof metadata.full_name === "string" &&
       metadata.full_name.trim().length > 0 &&
       typeof metadata.gender === "string" &&
@@ -219,114 +221,163 @@ export default function SignupPage() {
     }
   };
 
+  const isSignup = mode === "signup";
+
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md items-center bg-background px-4 py-8">
-      <Card className="w-full">
-        <CardHeader>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/45">
-            {mode === "login" ? "Login" : "Sign up"}
+    <main className="min-h-screen bg-white px-5 py-8">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col">
+        <header className="pt-8">
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary/45"
+          >
+            LOODI
+          </button>
+          <h1 className="mt-8 text-[28px] font-bold leading-tight tracking-normal text-primary">
+            {isSignup ? "계정 만들기" : "로그인"}
+          </h1>
+          <p className="mt-2 text-sm text-primary/55">
+            {isSignup
+              ? "아이디로 가입하고 스타일 프로필을 이어서 설정해요."
+              : "기록해둔 스타일 다이어리로 바로 돌아가요."}
           </p>
-          <CardTitle className="text-2xl">LOODI 계정 만들기</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {mode ? (
+        </header>
+
+        <section className="mt-10 flex rounded-lg bg-[#f4f4f5] p-1">
+          {[
+            { value: "signup", label: "회원가입" },
+            { value: "login", label: "로그인" },
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => openMode(tab.value as AuthMode)}
+              className={cn(
+                "h-11 flex-1 rounded-md text-sm font-semibold transition",
+                mode === tab.value
+                  ? "bg-white text-primary shadow-[0_2px_10px_rgba(20,27,43,0.08)]"
+                  : "text-primary/45"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </section>
+
+        <section className="mt-7 space-y-3">
+          {mode === "login" ? (
             <>
-              {mode === "login" ? (
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={isSubmittingGoogle}
-                  className="flex h-11 w-full items-center justify-between rounded-2xl border border-border bg-white px-4 text-sm font-medium text-primary transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <span>
-                    {isSubmittingGoogle ? "Google로 이동 중..." : "Google로 계속하기"}
-                  </span>
-                  <GoogleMark />
-                </button>
-              ) : null}
-              <input
-                className="h-11 w-full rounded-2xl border border-border bg-white px-4 text-sm text-primary outline-none transition focus:border-accent"
-                placeholder="아이디"
-                type="text"
-                autoComplete="username"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-              <input
-                className="h-11 w-full rounded-2xl border border-border bg-white px-4 text-sm text-primary outline-none transition focus:border-accent"
-                placeholder="비밀번호"
-                type="password"
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-              {mode === "signup" ? (
-                <>
-                  <input
-                    className="h-11 w-full rounded-2xl border border-border bg-white px-4 text-sm text-primary outline-none transition focus:border-accent"
-                    placeholder="비밀번호 확인"
-                    type="password"
-                    autoComplete="new-password"
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                  />
-                  <label className="flex items-start gap-3 rounded-2xl border border-border bg-white px-4 py-3 text-sm leading-5 text-primary/70">
-                    <input
-                      type="checkbox"
-                      checked={privacyAgreed}
-                      onChange={(event) => setPrivacyAgreed(event.target.checked)}
-                      className="mt-0.5 h-4 w-4 accent-accent"
-                    />
-                    <span>
-                      개인정보 수집 및 이용에 동의합니다.
-                      <span className="block text-xs text-primary/45">
-                        계정 생성과 서비스 이용을 위해 아이디 정보를 저장합니다.
-                      </span>
-                    </span>
-                  </label>
-                </>
-              ) : null}
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isSubmittingGoogle}
+                className="flex h-13 w-full items-center justify-between rounded-lg border border-[#d7dce5] bg-white px-4 text-sm font-semibold text-primary transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span>
+                  {isSubmittingGoogle ? "Google로 이동 중..." : "Google로 계속하기"}
+                </span>
+                <GoogleMark />
+              </button>
+              <div className="flex items-center gap-3 py-2">
+                <span className="h-px flex-1 bg-[#eceef2]" />
+                <span className="text-[11px] font-medium text-primary/35">
+                  또는
+                </span>
+                <span className="h-px flex-1 bg-[#eceef2]" />
+              </div>
             </>
           ) : null}
 
+          <label className="block space-y-2">
+            <span className="text-xs font-semibold text-primary/70">아이디</span>
+            <input
+              className="h-13 w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-[15px] text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
+              placeholder="아이디 입력"
+              type="text"
+              autoComplete="username"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-xs font-semibold text-primary/70">
+              비밀번호
+            </span>
+            <input
+              className="h-13 w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-[15px] text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
+              placeholder="비밀번호 입력"
+              type="password"
+              autoComplete={isSignup ? "new-password" : "current-password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+
+          {isSignup ? (
+            <label className="block space-y-2">
+              <span className="text-xs font-semibold text-primary/70">
+                비밀번호 확인
+              </span>
+              <input
+                className="h-13 w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-[15px] text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
+                placeholder="비밀번호 다시 입력"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            </label>
+          ) : null}
+
+          {isSignup ? (
+            <label className="mt-2 flex items-start gap-3 rounded-lg bg-[#f7f7f8] px-4 py-3 text-sm leading-5 text-primary/70">
+              <input
+                type="checkbox"
+                checked={privacyAgreed}
+                onChange={(event) => setPrivacyAgreed(event.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-primary"
+              />
+              <span>
+                개인정보 수집 및 이용 동의
+                <span className="block text-xs text-primary/42">
+                  계정 생성과 서비스 이용을 위해 아이디 정보를 저장합니다.
+                </span>
+              </span>
+            </label>
+          ) : null}
+
           {message ? (
-            <p className="rounded-2xl bg-soft px-4 py-3 text-sm leading-6 text-primary/70">
+            <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">
               {message}
             </p>
           ) : null}
+        </section>
 
-          {mode === "signup" ? (
-            <Button className="h-11 w-full" onClick={handleSignup} disabled={submitting}>
-              {submitting ? "계정 만드는 중..." : "회원가입하고 시작하기"}
-            </Button>
-          ) : null}
-
-          {mode === null ? (
-            <Button className="h-11 w-full" onClick={() => openMode("signup")}>
-              회원가입하고 시작하기
-            </Button>
-          ) : null}
-
-          {mode === "login" ? (
-            <Button
-              variant="outline"
-              className="h-11 w-full"
-              onClick={handleLogin}
-              disabled={submitting}
-            >
-              {submitting ? "로그인 중..." : "로그인하기"}
-            </Button>
-          ) : null}
-
+        <div className="mt-auto space-y-3 pb-2 pt-8">
+          <Button
+            className="h-13 w-full rounded-lg bg-primary text-base font-bold text-white hover:bg-primary/90"
+            onClick={isSignup ? handleSignup : handleLogin}
+            disabled={submitting}
+          >
+            {submitting
+              ? isSignup
+                ? "계정 만드는 중..."
+                : "로그인 중..."
+              : isSignup
+                ? "회원가입"
+                : "로그인"}
+          </Button>
           <button
             type="button"
-            onClick={() => openMode(mode === "login" ? "signup" : "login")}
-            className="block w-full text-center text-sm font-medium text-muted-foreground underline-offset-4 hover:underline"
+            onClick={() => openMode(isSignup ? "login" : "signup")}
+            className="h-11 w-full text-center text-sm font-medium text-primary/55"
           >
-            {mode === "login" ? "처음이신가요? 시작하기" : "이미 계정이 있어요"}
+            {isSignup ? "이미 계정이 있어요" : "처음이신가요? 회원가입"}
           </button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </main>
   );
 }
