@@ -1,15 +1,16 @@
+import { scopedLocalStorageKey } from "@/lib/user-storage";
 const RETRY_KEY = "loodi_ai_analysis_retry_count";
 
 export function getAnalysisRetryCount() {
   if (typeof window === "undefined") return 0;
-  const raw = window.localStorage.getItem(RETRY_KEY);
+  const raw = window.localStorage.getItem(scopedLocalStorageKey(RETRY_KEY));
   const parsed = Number(raw ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export function setAnalysisRetryCount(value: number) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(RETRY_KEY, String(Math.max(0, value)));
+  window.localStorage.setItem(scopedLocalStorageKey(RETRY_KEY), String(Math.max(0, value)));
 }
 
 export function incrementAnalysisRetryCount() {

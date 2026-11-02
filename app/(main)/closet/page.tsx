@@ -1,4 +1,12 @@
 "use client";
+import { ScreenHeader } from "@/components/layout/screen-header";
+import { ClosetGroups } from "@/components/closet/closet-groups";
+import { DiaryBackupPanel } from '@/components/closet/diary-backup-panel';
+import { compressImageForUpload } from '@/lib/onboarding-analysis-images';
+import { RecordedClosetGroup, closetCategories, ClosetCategory, normalizeItemCategory, inferItemsFromEntryText, formatBirthDate, calculateAge } from "@/lib/closet-model";
+
+import { useAccountDeletion } from "@/hooks/use-account-deletion";
+import { shareStyle } from "@/lib/share";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -15,20 +23,12 @@ import {
   LogOut,
   MessageCircle,
   Share2,
-  Shirt,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  BottomsIcon,
-  OuterwearIcon,
-  ShoesIcon,
-  TopsIcon,
-} from "@/components/icons/category-icons";
+import { Card, CardContent } from "@/components/ui/card";
+
 import {
   diaryPhotoToDataUrl,
   readDiaryEntries,
@@ -49,156 +49,7 @@ type Profile = {
   email: string;
 };
 
-type RecordedClosetGroup = {
-  category: string;
-  items: { name: string; used: number }[];
-};
-
 const PROFILE_PHOTO_STORAGE_KEY = "loodi_profile_photo";
-
-const closetCategories = [
-  "Outerwear",
-  "Tops",
-  "Bottoms",
-  "Shoes & Accessories",
-] as const;
-
-type ClosetCategory = (typeof closetCategories)[number];
-
-const categoryIcons: Record<ClosetCategory, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
-  Outerwear: OuterwearIcon,
-  Tops: TopsIcon,
-  Bottoms: BottomsIcon,
-  "Shoes & Accessories": ShoesIcon,
-};
-
-const categoryStyles: Record<
-  ClosetCategory,
-  { label: string; accent: string; surface: string; rail: string }
-> = {
-  Outerwear: {
-    label: "Outerwear",
-    accent: "bg-[#8d3f56]",
-    surface: "bg-[#8d3f56]/10",
-    rail: "bg-[#8d3f56]",
-  },
-  Tops: {
-    label: "Tops",
-    accent: "bg-[#2f6b5a]",
-    surface: "bg-[#2f6b5a]/10",
-    rail: "bg-[#2f6b5a]",
-  },
-  Bottoms: {
-    label: "Bottoms",
-    accent: "bg-[#243b6b]",
-    surface: "bg-[#243b6b]/10",
-    rail: "bg-[#243b6b]",
-  },
-  "Shoes & Accessories": {
-    label: "Shoes",
-    accent: "bg-[#d0923d]",
-    surface: "bg-[#d0923d]/12",
-    rail: "bg-[#d0923d]",
-  },
-};
-
-function normalizeItemCategory(category: string, name: string): ClosetCategory {
-  const text = `${category} ${name}`.toLowerCase();
-
-  if (
-    category === "아우터" ||
-    /outer|jacket|coat|blazer|cardigan|hoodie|zip|zipup|jumper|track top|집업|후드집업|후드 집업|집업후드|집업 후드|후드 자켓|후드 재킷|후드 점퍼|점퍼|자켓|재킷|코트|블레이저|가디건/.test(
-      text
-    )
-  ) {
-    return "Outerwear";
-  }
-
-  if (
-    category === "상의" ||
-    category === "원피스" ||
-    /top|shirt|tee|t-shirt|sweatshirt|knit| 니트|티셔츠|셔츠|후드티|맨투맨|상의|블라우스|원피스/.test(
-      text
-    )
-  ) {
-    return "Tops";
-  }
-
-  if (
-    category === "하의" ||
-    /bottom|pants|denim|jeans|slacks|skirt|shorts|팬츠|바지|데님|청바지|슬랙스|스커트|치마|반바지/.test(
-      text
-    )
-  ) {
-    return "Bottoms";
-  }
-
-  return "Shoes & Accessories";
-}
-
-function inferItemsFromEntryText(text: string) {
-  const candidates: { category: string; name: string }[] = [];
-
-  const knownItems = [
-    {
-      category: "아우터",
-      name: "네이비 후드집업",
-      patterns: [
-        "네이비 후드집업",
-        "네이비 집업",
-        "네이비색 후드집업",
-        "네이비색 집업",
-        "블루 후드집업",
-        "블루 집업",
-        "후드집업",
-        "후드 집업",
-        "집업 후드",
-      ],
-    },
-    {
-      category: "상의",
-      name: "블랙 그래픽 티셔츠",
-      patterns: ["블랙 그래픽 티셔츠", "그래픽 티셔츠", "티셔츠"],
-    },
-  ];
-
-  for (const item of knownItems) {
-    if (item.patterns.some((pattern) => text.includes(pattern))) {
-      candidates.push({ category: item.category, name: item.name });
-    }
-  }
-
-  return candidates;
-}
-
-function formatBirthDate(value: string) {
-  if (!value) return "-";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(date);
-}
-
-function calculateAge(value: string) {
-  if (!value) return "-";
-  const birthDate = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(birthDate.getTime())) return "-";
-
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (
-    monthDiff < 0 ||
-    (monthDiff === 0 && today.getDate() < birthDate.getDate())
-  ) {
-    age -= 1;
-  }
-
-  return `${age}세`;
-}
 
 export default function ClosetPage() {
   const router = useRouter();
@@ -214,10 +65,14 @@ export default function ClosetPage() {
   >(null);
   const [shareCopied, setShareCopied] = useState(false);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
+  const [profileError, setProfileError] = useState('');
+  const [photoSaving, setPhotoSaving] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
-      const { data } = await supabase.auth.getUser();
+      try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
       const user = data.user;
 
       if (!user) {
@@ -254,7 +109,8 @@ export default function ClosetPage() {
           scopedLocalStorageKey(PROFILE_PHOTO_STORAGE_KEY)
         ) ?? ""
       );
-      setLoading(false);
+      } catch { setProfileError('프로필을 불러오지 못했어요. 연결을 확인하고 다시 열어주세요.'); }
+      finally { setLoading(false); }
     };
 
     loadProfile();
@@ -268,7 +124,7 @@ export default function ClosetPage() {
       { category: ClosetCategory; name: string; used: number }
     >();
 
-    for (const entry of readDiaryEntries()) {
+    for (const entry of diaryEntries) {
       const entryItems =
         entry.items && entry.items.length > 0
           ? entry.items
@@ -306,35 +162,41 @@ export default function ClosetPage() {
         items: (grouped.get(category) ?? []).sort((a, b) => b.used - a.used),
       }))
     );
-  }, [loading]);
+  }, [loading, diaryEntries]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) { setProfileError('로그아웃하지 못했어요. 연결을 확인하고 다시 시도해 주세요.'); return; }
     clearCurrentUserStorageId();
     router.replace("/");
   };
 
-  const saveProfilePhoto = (file: File) => {
-    if (!file.type.startsWith("image/")) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      if (!result) return;
+  const saveProfilePhoto = async (file: File) => {
+    setProfileError('');
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setProfileError('5MB 이하의 JPG, PNG, WEBP, GIF 사진을 선택해 주세요.'); return;
+    }
+    setPhotoSaving(true);
+    try {
+      const photo = await compressImageForUpload(file, 512, .8);
+      const result = diaryPhotoToDataUrl(photo);
       window.localStorage.setItem(
         scopedLocalStorageKey(PROFILE_PHOTO_STORAGE_KEY),
         result
       );
       setProfilePhotoUrl(result);
-    };
-    reader.readAsDataURL(file);
+    } catch { setProfileError('사진을 저장하지 못했어요. 저장 공간을 확인하고 다시 시도해 주세요.'); }
+    finally { setPhotoSaving(false); }
   };
 
   const removeProfilePhoto = () => {
+    try {
     window.localStorage.removeItem(
       scopedLocalStorageKey(PROFILE_PHOTO_STORAGE_KEY)
     );
     setProfilePhotoUrl("");
+    setProfileError('');
+    } catch { setProfileError('프로필 사진을 삭제하지 못했어요. 다시 시도해 주세요.'); }
   };
 
   const totalItems = recordedCloset.reduce(
@@ -358,53 +220,31 @@ export default function ClosetPage() {
   const shareTitle = `${displayName}님의 LOODI 스타일 기록`;
   const shareDescription = `${diaryEntries.length}개의 기록과 ${totalItems}개의 아이템으로 만든 스타일 아카이브`;
 
+  const { deletingAccount, deleteError, deleteAccount } = useAccountDeletion();
+  const [shareError, setShareError] = useState("");
+  const copyProfile = async () => {
+    try { await navigator.clipboard.writeText(`${shareTitle}\n${shareDescription}`); setShareCopied(true); window.setTimeout(() => setShareCopied(false), 1800); }
+    catch { setShareError("복사하지 못했어요. 공유 버튼을 이용해 주세요."); }
+  };
   const shareProfile = async () => {
-    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-    const shareText = `${shareTitle}\n${shareDescription}`;
-
-    if (
-      typeof navigator !== "undefined" &&
-      "share" in navigator &&
-      typeof navigator.share === "function"
-    ) {
-      try {
-        await navigator.share({
-          title: shareTitle,
-          text: shareDescription,
-          url: shareUrl,
-        });
-        return;
-      } catch {
-        // Continue to clipboard fallback.
-      }
-    }
-
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
-      setShareCopied(true);
-      window.setTimeout(() => setShareCopied(false), 1800);
-    }
+    try {
+      setShareError("");
+      const copied = await shareStyle(shareTitle, shareDescription);
+      if (copied) { setShareCopied(true); window.setTimeout(() => setShareCopied(false), 1800); }
+    } catch { setShareError("공유하지 못했어요. 소개 복사를 이용해 주세요."); }
   };
 
   return (
     <div className="space-y-5">
-      <section className="diary-surface rounded-lg border border-border px-4 py-4 shadow-soft">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <span className="diary-label">WARDROBE INDEX</span>
-            <h1 className="mt-3 text-2xl font-semibold text-primary">Closet</h1>
-            <p className="mt-1 text-sm text-primary/60">
-              기록에서 자주 등장한 아이템을 옷장처럼 정리했어요.
-            </p>
-          </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card text-accent shadow-soft">
-            <Shirt size={22} />
-          </div>
-        </div>
+      {profileError ? <p role="alert" className="rounded-2xl bg-soft p-4 text-sm text-destructive">{profileError}</p> : null}
+      {photoSaving ? <p role="status" className="text-sm text-muted-foreground">프로필 사진을 저장하고 있어요.</p> : null}
+      {shareError ? <p role="alert" className="rounded-2xl bg-soft p-4 text-sm text-destructive">{shareError}</p> : null}
+      <section className="space-y-3">
+        <ScreenHeader eyebrow="MY WARDROBE" title="나의 옷장" description="자주 입는 옷부터, 나를 닮은 아이템까지." />
         <div className="mt-4 grid grid-cols-2 gap-2">
           <div className="rounded-lg border border-border bg-card/85 p-3">
             <p className="text-[11px] font-semibold uppercase text-primary/45">
-              Pieces
+              옷장 아이템
             </p>
             <p className="mt-1 text-xl font-semibold text-primary">
               {loading ? "-" : totalItems}
@@ -412,7 +252,7 @@ export default function ClosetPage() {
           </div>
           <div className="rounded-lg border border-border bg-card/85 p-3">
             <p className="text-[11px] font-semibold uppercase text-primary/45">
-              Logged Wears
+              착용 기록
             </p>
             <p className="mt-1 text-xl font-semibold text-primary">
               {loading ? "-" : totalWears}
@@ -431,6 +271,7 @@ export default function ClosetPage() {
                   onClick={() => photoInputRef.current?.click()}
                   className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-border bg-soft text-primary/30 transition hover:border-accent"
                   aria-label="프로필 사진 설정"
+                  disabled={photoSaving}
                 >
                   {profilePhotoUrl ? (
                     <Image
@@ -552,10 +393,14 @@ export default function ClosetPage() {
               </div>
               <Link
                 href="/profile/setup?next=%2Fcloset&edit=1"
-                className="flex h-10 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-white"
+                className="flex h-12 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-white"
               >
                 이름과 개인정보 수정
               </Link>
+              <Button className="w-full" variant="outline" disabled={deletingAccount} onClick={deleteAccount}>
+                {deletingAccount ? "계정 삭제 중..." : "계정 영구 삭제"}
+              </Button>
+              {deleteError ? <p role="alert" className="text-sm text-destructive">{deleteError}</p> : null}
               {profilePhotoUrl ? (
                 <button
                   type="button"
@@ -608,15 +453,15 @@ export default function ClosetPage() {
               <div className="grid grid-cols-2 gap-2">
                 <Button className="gap-2 rounded-lg" onClick={shareProfile}>
                   <Link2 size={16} />
-                  카카오톡/공유
+                  공유하기
                 </Button>
                 <Button
                   variant="outline"
                   className="gap-2 rounded-lg"
-                  onClick={shareProfile}
+                  onClick={copyProfile}
                 >
                   <Copy size={16} />
-                  {shareCopied ? "복사됨" : "링크 복사"}
+                  {shareCopied ? "복사됨" : "소개 복사"}
                 </Button>
               </div>
             </div>
@@ -636,75 +481,8 @@ export default function ClosetPage() {
         </CardContent>
       </Card>
 
-      {recordedCloset.map((group) => {
-        const Icon = categoryIcons[group.category as ClosetCategory];
-        const style = categoryStyles[group.category as ClosetCategory];
-        const topUsed = Math.max(...group.items.map((item) => item.used), 1);
-        return (
-          <Card key={group.category} className="diary-surface overflow-hidden">
-            <CardHeader>
-              <div className="flex items-center justify-between gap-3">
-                <CardTitle className="flex items-center gap-2">
-                  {Icon ? (
-                    <span className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${style.surface} text-primary`}>
-                      <Icon className="h-5 w-5" />
-                    </span>
-                  ) : null}
-                  <span>
-                    {group.category}
-                    <span className="mt-0.5 block text-xs font-medium text-primary/45">
-                      {group.items.length} pieces
-                    </span>
-                  </span>
-                </CardTitle>
-                <span className={`h-8 w-2 rounded-full ${style.accent}`} />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {group.items.length > 0 ? (
-                group.items.map((item, index) => (
-                  <div
-                    key={`${group.category}-${item.name}`}
-                    className="rounded-lg border border-border bg-card/90 p-3 shadow-[0_8px_20px_rgba(28,44,70,0.05)]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-sm bg-soft text-[11px] font-semibold text-primary/60">
-                            {index + 1}
-                          </span>
-                          <p className="truncate text-sm font-semibold text-primary">
-                            {item.name}
-                          </p>
-                        </div>
-                        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-soft">
-                          <div
-                            className={`h-full rounded-full ${style.rail}`}
-                            style={{
-                              width: `${Math.max(18, Math.round((item.used / topUsed) * 100))}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <Badge className="shrink-0 border border-border bg-soft text-primary">
-                        {item.used}회
-                      </Badge>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-lg border border-dashed border-border bg-soft/70 p-4 text-sm text-primary/55">
-                  <div className="mb-2 flex items-center gap-2 text-primary">
-                    <Sparkles size={15} className="text-accent" />
-                    <span className="font-semibold">{style.label} 비어 있음</span>
-                  </div>
-                  Timeline 기록에서 이 카테고리 아이템이 발견되면 자동으로 채워져요.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
+      <ClosetGroups groups={recordedCloset} />
+      <DiaryBackupPanel onRestore={() => setDiaryEntries(readDiaryEntries())} />
     </div>
   );
 }

@@ -6,34 +6,53 @@
     "dev": "node scripts/dev-server.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "mobile:build": "node scripts/build-mobile.mjs",
+    "ios:sync": "npm run mobile:build && cap sync ios",
+    "ios:open": "cap open ios",
+    "test": "tsx --test tests/*.test.ts tests/*.test.mjs",
+    "release:check": "node scripts/check-release.mjs",
+    "api:smoke": "node scripts/smoke-api.mjs",
+    "test:ui": "playwright test",
+    "test:mobile": "playwright test --config playwright.mobile.config.ts",
+    "mobile:preview": "node scripts/preview-mobile.mjs"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.1",
+    "@capacitor/camera": "^8.2.6",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0",
+    "@capacitor/share": "^8.0.3",
     "@google/genai": "^2.13.0",
     "@supabase/supabase-js": "^2.110.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.511.0",
     "motion": "^12.38.0",
-    "next": "^15.5.22",
+    "next": "^15.5.28",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "tailwind-merge": "^3.3.0"
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
     "autoprefixer": "^10.4.21",
     "eslint": "^8.57.1",
-    "eslint-config-next": "^15.5.22",
+    "eslint-config-next": "^15.5.28",
     "postcss": "^8.5.23",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.3"
   },
   "overrides": {
     "next": {
-      "sharp": "0.35.3"
+      "postcss": "^8.5.23"
     }
   }
 }

@@ -1,4 +1,5 @@
 "use client";
+import { useUploadWeather } from "@/hooks/use-upload-weather";
 
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
@@ -55,18 +56,6 @@ const tpoTags = [
   "Event",
 ];
 
-function weatherLabelFromCode(code: number, temperature: number) {
-  if (code === 0) return `Sunny · ${Math.round(temperature)}°C`;
-  if (code <= 3) return `Cloudy · ${Math.round(temperature)}°C`;
-  if ([45, 48].includes(code)) return `Foggy · ${Math.round(temperature)}°C`;
-  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) {
-    return `Rainy · ${Math.round(temperature)}°C`;
-  }
-  if (code >= 71 && code <= 77) return `Snowy · ${Math.round(temperature)}°C`;
-  if (code >= 95) return `Stormy · ${Math.round(temperature)}°C`;
-  return `Weather tagged · ${Math.round(temperature)}°C`;
-}
-
 export default function OutfitUploadPage() {
   const router = useRouter();
   const [images, setImages] = useState<UploadImage[]>([]);
@@ -78,12 +67,7 @@ export default function OutfitUploadPage() {
   const [selectedTpo, setSelectedTpo] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
 
-  const [weatherTag, setWeatherTag] = useState<string | null>(null);
-  const [weatherStatus, setWeatherStatus] = useState<
-    "idle" | "loading" | "success" | "denied" | "error"
-  >("idle");
-  const [manualWeatherOpen, setManualWeatherOpen] = useState(false);
-  const [manualWeatherInput, setManualWeatherInput] = useState("");
+  const { weatherTag, setWeatherTag, weatherStatus, setWeatherStatus, manualWeatherOpen, setManualWeatherOpen, manualWeatherInput, setManualWeatherInput } = useUploadWeather();
   const [hydrated, setHydrated] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -106,7 +90,7 @@ export default function OutfitUploadPage() {
     }
     writeOnboardingLocalState({ lastStep: "upload", completed: false });
     setHydrated(true);
-  }, []);
+  }, [setWeatherStatus, setWeatherTag]);
 
   useEffect(() => {
     return () => {
@@ -114,48 +98,7 @@ export default function OutfitUploadPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const loadWeather = () => {
-      if (weatherTag) return;
-      if (!navigator.geolocation) {
-        setWeatherStatus("denied");
-        setManualWeatherOpen(true);
-        return;
-      }
 
-      setWeatherStatus("loading");
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const { latitude, longitude } = position.coords;
-            const res = await fetch(
-              `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=weather_code,temperature_2m`
-            );
-            if (!res.ok) throw new Error("weather fetch failed");
-            const data = await res.json();
-            const code = Number(data?.current?.weather_code ?? 1);
-            const temp = Number(data?.current?.temperature_2m ?? 20);
-            setWeatherTag(weatherLabelFromCode(code, temp));
-            setWeatherStatus("success");
-          } catch {
-            setWeatherStatus("error");
-            setManualWeatherOpen(true);
-          }
-        },
-        (error) => {
-          if (error.code === error.PERMISSION_DENIED) {
-            setWeatherStatus("denied");
-          } else {
-            setWeatherStatus("error");
-          }
-          setManualWeatherOpen(true);
-        },
-        { timeout: 6000 }
-      );
-    };
-
-    loadWeather();
-  }, [weatherTag]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -314,7 +257,7 @@ export default function OutfitUploadPage() {
             onClick={openAddSheet}
             className="flex h-44 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary/25 bg-primary/[0.02] text-center transition hover:border-primary/40"
           >
-            <p className="text-base font-medium text-primary">+ Add photos</p>
+            <p className="text-base font-medium text-primary">사진 추가하기</p>
             <p className="mt-1 text-xs text-primary/60">
               {images.length}/{MAX_PHOTOS} uploaded
             </p>
@@ -430,9 +373,9 @@ export default function OutfitUploadPage() {
 
         <section className="space-y-2 rounded-2xl border border-border p-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-primary">Weather Tag</p>
+            <p className="text-sm font-medium text-primary">오늘의 날씨</p>
             {weatherStatus === "loading" ? (
-              <span className="text-xs text-primary/60">Detecting...</span>
+              <span className="text-xs text-primary/60">확인 중…</span>
             ) : null}
           </div>
           {weatherTag ? (
@@ -462,7 +405,7 @@ export default function OutfitUploadPage() {
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             maxLength={80}
-            placeholder="One-line note about this look"
+            placeholder="오늘의 룩에 대한 짧은 메모"
             className="h-11 w-full rounded-xl border border-border px-3 text-sm outline-none focus:border-primary/35"
           />
         </section>
@@ -509,7 +452,7 @@ export default function OutfitUploadPage() {
               className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-white px-4 pb-7 pt-5"
             >
               <div className="mx-auto w-full max-w-md space-y-2">
-                <p className="text-sm font-medium text-primary">Add outfit photo</p>
+                <p className="text-sm font-medium text-primary">착장 사진 추가</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -569,7 +512,7 @@ export default function OutfitUploadPage() {
                 <input
                   value={manualWeatherInput}
                   onChange={(e) => setManualWeatherInput(e.target.value)}
-                  placeholder="e.g. Cloudy · 18°C"
+                  placeholder="예: 흐림 · 18°C"
                   className="h-11 w-full rounded-xl border border-border px-3 text-sm outline-none focus:border-primary/35"
                 />
                 <div className="flex flex-wrap gap-2">

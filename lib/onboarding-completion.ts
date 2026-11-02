@@ -8,16 +8,12 @@ export async function completeSurveyOnboarding(
   navigate: (path: string) => void,
   skipped = false,
 ) {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  if (!data.user) { navigate("/signup"); return; }
+  const result = await supabase.auth.updateUser({ data: { onboarding_completed: true } });
+  if (result.error) throw result.error;
   writeSurveyDraft({ skipped });
   writeOnboardingLocalState({ completed: true, lastStep: "completed" });
-
-  const { data } = await supabase.auth.getUser();
-  if (data.user) {
-    await supabase.auth.updateUser({
-      data: {
-        onboarding_completed: true,
-      },
-    });
-  }
-  navigate(data.user ? "/home" : "/");
+  navigate("/home");
 }

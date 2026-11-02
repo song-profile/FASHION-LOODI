@@ -1,175 +1,29 @@
 "use client";
-
-import Link from "next/link";
-import { useEffect, useState } from "react";
-
-import { Button } from "@/components/ui/button";
-import {
-  readAnalysisResult,
-  type AggregatedAnalysis,
-} from "@/lib/onboarding-analysis-images";
-import { writeOnboardingLocalState } from "@/lib/onboarding-persistence";
-
-const FALLBACK_RATIOS = [
-  { label: "Minimal", value: 46 },
-  { label: "Classic", value: 29 },
-  { label: "Street", value: 15 },
-  { label: "Romantic", value: 10 },
-];
-
-const FALLBACK_ITEMS = [
-  "Single Blazer",
-  "Wide Slacks",
-  "Leather Belt",
-  "Loafers",
-  "Structured Tote",
-];
-
-const FALLBACK_PALETTE = [
-  { label: "Charcoal", hex: "#1F2430" },
-  { label: "Walnut", hex: "#6D5C4A" },
-  { label: "Stone", hex: "#C3B8AA" },
-  { label: "Ivory", hex: "#F1EFEA" },
-];
-
-const FALLBACK_SILHOUETTE = "Relaxed Straight + Defined Shoulder";
-
-const FALLBACK_NOTE =
-  "클래식 테일러링을 기반으로 실루엣은 여유 있고 정돈되어 있습니다. 다음 기록에서는 텍스처 대비를 한 단계 높이면 스타일 아이덴티티가 더 선명해질 가능성이 높아요.";
-
-function buildRatios(result: AggregatedAnalysis) {
-  const total = Object.values(result.styleCounts).reduce((s, n) => s + n, 0);
-  if (total === 0) return [];
-  return Object.entries(result.styleCounts)
-    .map(([label, count]) => ({ label, value: Math.round((count / total) * 100) }))
-    .sort((a, b) => b.value - a.value);
-}
+import { useEffect, useState } from 'react';
+import { BackLink } from '@/components/navigation/back-link';
+import { LinkButton } from '@/components/ui/link-button';
+import { readAnalysisResult, type AggregatedAnalysis } from '@/lib/onboarding-analysis-images';
+import { writeOnboardingLocalState } from '@/lib/onboarding-persistence';
 
 export default function AnalysisResultPage() {
   const [result, setResult] = useState<AggregatedAnalysis | null>(null);
-
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    writeOnboardingLocalState({ lastStep: "analysis_result", completed: false });
-    setResult(readAnalysisResult());
+    writeOnboardingLocalState({ lastStep: 'analysis_result', completed: false });
+    setResult(readAnalysisResult()); setReady(true);
   }, []);
-
-  const ratios = result ? buildRatios(result) : [];
-  const itemTags = result ? result.items.map((it) => it.name).slice(0, 8) : [];
-  const colorTags = result ? result.colors : [];
-  const silhouette = result
-    ? [result.seasons.join(" · "), result.moods.slice(0, 2).join(", ")]
-        .filter(Boolean)
-        .join(" / ")
-    : "";
-  const note = result?.notes.join("\n\n") ?? "";
-
-  return (
-    <main className="mx-auto min-h-screen w-full max-w-md bg-white px-4 pb-28 pt-8">
-      <div className="space-y-6">
-        <header className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight text-primary">
-            AI style analysis result
-          </h1>
-          <p className="text-sm text-primary/70">
-            첫 룩 분석이 완료되었습니다. 아래 요약을 다이어리에 저장할 수 있어요.
-          </p>
-        </header>
-
-        <section className="space-y-3 rounded-2xl border border-border p-4">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
-            Style Category Ratio
-          </p>
-          {(ratios.length > 0 ? ratios : FALLBACK_RATIOS).map((ratio) => (
-            <div key={ratio.label} className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-primary/75">
-                <span>{ratio.label}</span>
-                <span>{ratio.value}%</span>
-              </div>
-              <div className="h-2 rounded-full bg-soft">
-                <div
-                  className="h-2 rounded-full bg-primary"
-                  style={{ width: `${ratio.value}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </section>
-
-        <section className="space-y-3 rounded-2xl border border-border p-4">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
-            Detected Item Tags
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {(itemTags.length > 0 ? itemTags : FALLBACK_ITEMS).map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full border border-border px-3 py-1 text-xs text-primary/80"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        <section className="space-y-3 rounded-2xl border border-border p-4">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
-            Color Palette
-          </p>
-          {colorTags.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {colorTags.map((c) => (
-                <span
-                  key={c}
-                  className="rounded-full border border-border px-3 py-1 text-xs text-primary/80"
-                >
-                  {c}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              {FALLBACK_PALETTE.map((p) => (
-                <div
-                  key={p.hex}
-                  className="flex items-center gap-2 rounded-lg border border-border px-2 py-1"
-                >
-                  <span
-                    className="h-5 w-5 rounded-full border border-black/10"
-                    style={{ backgroundColor: p.hex }}
-                  />
-                  <span className="text-[11px] text-primary/70">{p.hex}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="space-y-3 rounded-2xl border border-border p-4">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
-            Silhouette Result
-          </p>
-          <p className="text-sm font-medium text-primary">
-            {silhouette || FALLBACK_SILHOUETTE}
-          </p>
-        </section>
-
-        <section className="space-y-3 rounded-2xl border border-border p-4">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary/50">
-            AI Style Note
-          </p>
-          <p className="whitespace-pre-line text-sm leading-relaxed text-primary/75">
-            {note || FALLBACK_NOTE}
-          </p>
-        </section>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/80 bg-white/95 px-4 py-4 backdrop-blur">
-        <div className="mx-auto w-full max-w-md">
-          <Link href="/onboarding/result">
-            <Button className="h-11 w-full">다이어리에 기록하기</Button>
-          </Link>
-        </div>
-      </div>
-    </main>
-  );
+  if (!ready) return <main role="status" className="mx-auto max-w-md p-8">분석 결과를 불러오고 있어요.</main>;
+  const total = Object.values(result?.styleCounts || {}).reduce((sum, value) => sum + value, 0);
+  return <main className="mx-auto min-h-dvh max-w-md space-y-6 px-5 py-6">
+    <BackLink href="/onboarding/upload" label="사진 선택으로" />
+    <header><p className="diary-label">YOUR STYLE</p><h1 className="mt-3 text-2xl">사진에서 찾은 나의 스타일</h1><p className="mt-3 text-sm leading-relaxed text-muted-foreground">{result ? '분석 내용을 확인하고 사진과 함께 기록해 보세요.' : '분석 결과가 없어요. 사진을 다시 선택하거나 분석 없이 기록해 주세요.'}</p></header>
+    {result ? <>
+      <section className="space-y-4 rounded-3xl border border-border bg-card p-5"><h2 className="text-base">스타일 취향</h2>
+        {total ? Object.entries(result.styleCounts).sort((a,b) => b[1]-a[1]).map(([label,count]) => <div key={label}><div className="mb-2 flex justify-between text-sm"><span>{label}</span><span className="text-muted-foreground">{Math.round(count/total*100)}%</span></div><div className="h-1.5 rounded-full bg-soft"><div className="h-full rounded-full bg-accent" style={{ width: `${count/total*100}%` }} /></div></div>) : <p className="text-sm text-muted-foreground">스타일을 특정할 정보가 부족해요.</p>}
+      </section>
+      <section className="space-y-3 rounded-3xl border border-border bg-card p-5"><h2 className="text-base">사진 속 아이템</h2><div className="flex flex-wrap gap-2">{result.items.length ? result.items.slice(0,8).map((item,index) => <span key={`${item.name}-${index}`} className="rounded-full bg-soft px-3 py-2 text-sm">{item.name}</span>) : <p className="text-sm text-muted-foreground">뚜렷하게 감지된 아이템이 없어요.</p>}</div></section>
+      <section className="space-y-3 rounded-3xl border border-border bg-card p-5"><h2 className="text-base">컬러와 분위기</h2><p className="text-sm leading-relaxed text-muted-foreground">{[...result.colors, ...result.moods].join(' · ') || '감지된 정보가 없어요.'}</p>{result.notes.length ? <p className="text-sm leading-relaxed">{result.notes.join(' ')}</p> : null}</section>
+    </> : null}
+    <LinkButton href="/onboarding/result" className="w-full">{result ? '이 룩 기록하기' : '분석 없이 기록하기'}</LinkButton>
+  </main>;
 }

@@ -1,8 +1,11 @@
 "use client";
 
+import { hasCompleteProfile, safeNextPath } from "@/lib/auth-routing";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
+import { BackLink } from "@/components/navigation/back-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -32,20 +35,10 @@ function ProfileSetupContent() {
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
       const metadata = data.user?.user_metadata;
-      const nextPath = searchParams.get("next") ?? "/home";
+      const nextPath = safeNextPath(searchParams.get("next"));
       const isEditMode = searchParams.get("edit") === "1";
 
-      if (
-        !isEditMode &&
-        typeof metadata?.nickname === "string" &&
-        metadata.nickname.trim().length > 0 &&
-        typeof metadata?.full_name === "string" &&
-        metadata.full_name.trim().length > 0 &&
-        typeof metadata?.gender === "string" &&
-        metadata.gender.trim().length > 0 &&
-        typeof metadata?.birth_date === "string" &&
-        metadata.birth_date.trim().length > 0
-      ) {
+      if (!isEditMode && hasCompleteProfile(metadata)) {
         router.replace(nextPath);
         return;
       }
@@ -101,22 +94,22 @@ function ProfileSetupContent() {
       return;
     }
 
-    router.replace(searchParams.get("next") ?? "/home");
+    router.replace(safeNextPath(searchParams.get("next")));
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center bg-white px-4 py-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-background px-5 py-4">
       <div className="space-y-6">
+        <BackLink href={searchParams.get("edit") === "1" ? "/closet" : "/signup"} />
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary/45">
             Profile
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-primary">
-            이름이나 닉네임을 정해 주세요
+            프로필을 알려주세요
           </h1>
           <p className="text-sm leading-relaxed text-primary/60">
-            닉네임은 내 정보 화면 맨 위에 표시되고, 이름은 프로필 관리에서
-            개인정보로 따로 보여줘요.
+            닉네임은 옷장에 표시돼요. 나머지 정보는 내 프로필에서만 확인할 수 있어요.
           </p>
         </div>
 

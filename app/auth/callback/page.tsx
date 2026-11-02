@@ -1,5 +1,7 @@
 "use client";
 
+import { postLoginPath } from "@/lib/auth-routing";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 
@@ -36,27 +38,7 @@ function AuthCallbackContent() {
         return;
       }
       const metadata = data.user?.user_metadata ?? {};
-      const completedOnboarding = metadata.onboarding_completed === true;
-      const hasProfile =
-        typeof metadata.nickname === "string" &&
-        metadata.nickname.trim().length > 0 &&
-        typeof metadata.full_name === "string" &&
-        metadata.full_name.trim().length > 0 &&
-        typeof metadata.gender === "string" &&
-        metadata.gender.trim().length > 0 &&
-        typeof metadata.birth_date === "string" &&
-        metadata.birth_date.trim().length > 0;
-
-      if (!hasProfile) {
-        router.replace(
-          `/profile/setup?next=${encodeURIComponent(
-            completedOnboarding ? nextPath : "/onboarding/style"
-          )}`
-        );
-        return;
-      }
-
-      router.replace(completedOnboarding ? nextPath : "/onboarding/style");
+      router.replace(postLoginPath(metadata, nextPath));
     };
 
     completeLogin();

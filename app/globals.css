@@ -1,33 +1,41 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+/* Packaged with the app: Korean text must not depend on a remote stylesheet. */
+@font-face {
+  font-family: "Noto Sans KR";
+  src: url("/fonts/NotoSansKR.woff") format("woff");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: 42 32% 95%;
-  --foreground: 218 28% 18%;
-  --card: 40 38% 98%;
-  --card-foreground: 218 28% 18%;
+  --background: 36 33% 97%;
+  --foreground: 24 6% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 24 6% 16%;
   --popover: 40 38% 98%;
-  --popover-foreground: 218 28% 18%;
-  --primary: 218 28% 18%;
+  --popover-foreground: 24 6% 16%;
+  --primary: 24 6% 16%;
   --primary-foreground: 40 38% 98%;
-  --secondary: 205 35% 89%;
-  --secondary-foreground: 218 28% 18%;
+  --secondary: 35 19% 93%;
+  --secondary-foreground: 24 6% 16%;
   --muted: 42 22% 86%;
-  --muted-foreground: 222 12% 45%;
-  --soft: 44 45% 93%;
-  --accent: 350 38% 38%;
+  --muted-foreground: 28 6% 43%;
+  --soft: 33 25% 93%;
+  --accent: 346 42% 35%;
   --accent-foreground: 40 38% 98%;
   --destructive: 6 78% 57%;
   --destructive-foreground: 40 38% 98%;
-  --border: 219 18% 83%;
-  --input: 219 18% 83%;
+  --border: 30 20% 89%;
+  --input: 30 14% 86%;
   --ring: 157 20% 42%;
   --highlight: 157 20% 42%;
   --highlight-foreground: 40 38% 98%;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
+  --nav-height: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 
 .dark {
@@ -59,6 +67,12 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-padding-block: 20px calc(var(--nav-height) + 24px);
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -84,18 +98,13 @@
 
 body {
   margin: 0;
-  font-family: "Pretendard", "Inter", sans-serif;
-  font-weight: 450;
-  background:
-    linear-gradient(90deg, rgba(151, 57, 78, 0.08) 0 1px, transparent 1px 100%),
-    repeating-linear-gradient(
-      0deg,
-      hsl(var(--background)),
-      hsl(var(--background)) 31px,
-      rgba(44, 69, 105, 0.08) 32px
-    );
-  background-size: 34px 100%, 100% 32px;
-  background-position: calc(50% - 196px) 0, 0 0;
+  font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-weight: 400;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  background: hsl(var(--background));
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @layer components {
@@ -103,29 +112,76 @@ body {
     position: relative;
   }
 
-  .diary-page::before {
-    content: "";
-    pointer-events: none;
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(circle at 18% 10%, rgba(54, 118, 93, 0.08), transparent 26%),
-      radial-gradient(circle at 84% 22%, rgba(151, 57, 78, 0.08), transparent 24%);
-    opacity: 0.8;
-  }
-
   .diary-surface {
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.94)),
-      repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 30px,
-        rgba(44, 69, 105, 0.08) 31px
-      );
+    background: hsl(var(--card));
   }
 
   .diary-label {
-    @apply inline-flex items-center rounded-sm border border-border bg-secondary px-2 py-1 text-[10px] font-semibold uppercase text-primary/65;
+    @apply inline-flex items-center text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground;
   }
+}
+
+/* Match the iPhone safe area while preserving the browser layout. */
+body { padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.loodi-bottom-nav { height: var(--nav-height); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.diary-page { padding-bottom: calc(var(--nav-height) + 20px); }
+
+:focus-visible { outline: 2px solid hsl(var(--accent)); outline-offset: 4px; }
+h1:focus { outline: none; }
+button, a, input, textarea { touch-action: manipulation; scroll-margin-block: 20px; }
+input, textarea { font-size: 16px; }
+input, textarea, select, button { font-family: inherit; }
+input, textarea { word-break: normal; }
+.app-screen { animation: screen-enter 160ms ease-out; }
+/* Opacity only: transforms would make fixed sheets scroll with the page. */
+@keyframes screen-enter { from { opacity: .45; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+.page-actions {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 35;
+  border-top: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  padding: 12px max(20px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+.page-actions--above-nav { bottom: var(--nav-height); padding-bottom: 12px; }
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea { font-size: 16px; }
+
+/* LOODI editorial design system. */
+.screen-header { margin-bottom: 24px; }
+.screen-eyebrow { color: hsl(var(--accent)); font-size: 10px; font-weight: 600; letter-spacing: .12em; line-height: 1.6; }
+.screen-header h1 { margin-top: 8px; font-size: 26px; line-height: 1.4; font-weight: 700; letter-spacing: -.04em; }
+.screen-description { margin-top: 8px; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.8; }
+.record-progress { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; margin-top: 20px; }
+.record-progress li { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; border-radius: 10px; background: hsl(var(--soft)); color: hsl(var(--muted-foreground)); font-size: 11px; }
+.record-progress li[aria-current="step"] { color: hsl(var(--accent)); background: hsl(var(--accent) / .09); font-weight: 600; }
+.record-upload { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; width:100%; height:clamp(190px,32dvh,250px); border:1px dashed hsl(var(--accent) / .25); border-radius:22px; background:linear-gradient(145deg,#f3eeea,#faf8f5); color:hsl(var(--primary)); overflow:hidden; }
+.record-upload:active { background:hsl(var(--soft)); }
+.page-actions { border-top-color: transparent; padding-top: 12px; }
+.page-actions button { min-height: 50px; border-radius: 16px; }
+.loodi-bottom-nav { background: hsl(var(--card)); box-shadow: 0 -4px 24px #29262404; }
+
+.editorial-serif { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; letter-spacing: -.055em; }
+.journal-hero { position: relative; isolation: isolate; overflow: hidden; border-radius: 24px; background: #343b30; color: #fff; }
+.journal-hero::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, #20251eed 5%, #252a2080 57%, #252a2010); }
+.journal-hero-image { position: absolute; inset: 0; z-index: -2; }
+.journal-hero-image img { object-fit: cover; object-position: 62% 43%; }
+.journal-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border-block: 1px solid hsl(var(--border)); padding-block: 14px; }
+.journal-stats > div { text-align: center; }
+.journal-stats > div + div { border-left: 1px solid hsl(var(--border)); }
+.journal-stats dt { color: hsl(var(--muted-foreground)); font-size: 10px; }
+.journal-stats dd { margin-top: 4px; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lookbook-card { position: relative; aspect-ratio: 3/4; overflow: hidden; border-radius: 16px; background: hsl(var(--soft)); }
+.lookbook-card img { transition: scale 200ms ease-out; }
+@media (hover: hover) { .lookbook-card:hover img { scale: 1.035; } }
+.sheet-enter { animation: sheet-enter 180ms ease-out; }
+@keyframes sheet-enter { from { opacity: 0; translate: 0 16px; } to { opacity: 1; translate: 0 0; } }
+@media (min-width: 640px) {
+  .diary-page { border-inline: 1px solid hsl(var(--border)); background: hsl(var(--background)); }
+  .loodi-bottom-nav { max-width: 448px; margin-inline: auto; border-inline: 1px solid hsl(var(--border)); }
+  .page-actions--above-nav { max-width: 448px; margin-inline: auto; }
 }

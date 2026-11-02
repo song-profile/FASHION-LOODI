@@ -1,13 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
-import { requireAllowedApiUser } from "@/lib/access-control";
+import { withAiRequest } from "@/lib/server/ai-request";
+import { analysisSchema } from "@/lib/server/request-validation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const ALLOWED_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
-type AllowedMediaType = (typeof ALLOWED_MEDIA_TYPES)[number];
 const ANALYSIS_MODELS = [
   process.env.GEMINI_ANALYSIS_MODEL,
   "gemini-2.0-flash",
@@ -16,7 +15,6 @@ const ANALYSIS_MODELS = [
 ].filter((model, index, models): model is string => {
   return Boolean(model) && models.indexOf(model) === index;
 });
-const MODEL_RETRY_DELAYS_MS = [900, 1800];
 
 const SYSTEM_PROMPT = `당신은 의류 상품 태깅에 특화된 패션 스타일리스트입니다. 사용자가 업로드한 '오늘의 룩' 사진에서 실제로 보이는 착용 아이템만 분석합니다.
 - 보이는 의류/신발/가방/액세서리만 보고합니다. 보이지 않는 아이템 추측 금지.
@@ -73,10 +71,6 @@ function isTemporaryModelError(message: string) {
     lower.includes("quota") ||
     lower.includes("resource_exhausted")
   );
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function stringArray(value: unknown, limit = 8) {
@@ -140,11 +134,7 @@ function normalizeAnalysis(value: unknown) {
 }
 
 export async function POST(req: Request) {
-  const access = await requireAllowedApiUser(req);
-  if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status });
-  }
-
+  return withAiRequest(req, analysisSchema, async (body) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -153,34 +143,13 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { image?: string; mediaType?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
   const { image, mediaType } = body;
-  if (!image || !mediaType) {
-    return NextResponse.json(
-      { error: "image (base64) and mediaType are required" },
-      { status: 400 },
-    );
-  }
-  if (!ALLOWED_MEDIA_TYPES.includes(mediaType as AllowedMediaType)) {
-    return NextResponse.json(
-      { error: `Unsupported mediaType. Allowed: ${ALLOWED_MEDIA_TYPES.join(", ")}` },
-      { status: 400 },
-    );
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 25000, retryOptions: { attempts: 1 } } });
 
   try {
     let lastTemporaryError: string | null = null;
 
-    for (const model of ANALYSIS_MODELS) {
-      for (let attempt = 0; attempt <= MODEL_RETRY_DELAYS_MS.length; attempt += 1) {
+    for (const model of ANALYSIS_MODELS.slice(0, 2)) {
         try {
           const response = await ai.models.generateContent({
             model,
@@ -199,6 +168,7 @@ export async function POST(req: Request) {
             config: {
               systemInstruction: SYSTEM_PROMPT,
               temperature: 0.1,
+              maxOutputTokens: 2048,
               responseMimeType: "application/json",
             },
           });
@@ -217,16 +187,12 @@ export async function POST(req: Request) {
           }
 
           lastTemporaryError = message;
-          if (attempt < MODEL_RETRY_DELAYS_MS.length) {
-            await wait(MODEL_RETRY_DELAYS_MS[attempt]);
-          }
         }
-      }
     }
 
     throw new Error(lastTemporaryError ?? "Temporary model error");
   } catch (err) {
-    console.error("[analyze-outfit] failed:", err);
+
     const message = err instanceof Error ? err.message : "Unknown error";
     if (isTemporaryModelError(message)) {
       return NextResponse.json(
@@ -244,4 +210,5 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+  });
 }

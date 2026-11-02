@@ -49,7 +49,7 @@ export default function ContactPage() {
       const response = await authenticatedFetch("/api/contact-chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({ messages: nextMessages.slice(-20) }),
       });
 
       if (!response.ok) {
@@ -65,6 +65,8 @@ export default function ContactPage() {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "답변을 받지 못했어요.";
+      setInput(trimmed);
+      setMessages(messages);
       setError(message);
     } finally {
       setSending(false);
@@ -72,18 +74,18 @@ export default function ContactPage() {
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       sendMessage();
     }
   };
 
   return (
-    <main className="mx-auto flex h-screen w-full max-w-md flex-col bg-background md:max-w-2xl">
+    <main className="mx-auto flex h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-md flex-col bg-background md:max-w-2xl">
       <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
         <Link
           href="/closet"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-primary/70 hover:bg-soft"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-primary/70 hover:bg-soft"
           aria-label="뒤로 가기"
         >
           <ArrowLeft size={18} />
@@ -97,6 +99,7 @@ export default function ContactPage() {
 
       <div
         ref={scrollRef}
+        role="log" aria-live="polite" aria-label="문의 대화"
         className="flex-1 space-y-3 overflow-y-auto px-4 py-4"
       >
         {messages.map((message, idx) => (
@@ -127,17 +130,19 @@ export default function ContactPage() {
           </div>
         ) : null}
         {error ? (
-          <p className="text-center text-xs text-rose-600">{error}</p>
+          <p role="alert" className="text-center text-xs text-rose-600">{error}</p>
         ) : null}
       </div>
 
-      <div className="border-t border-border bg-card px-4 py-3">
+      <div className="border-t border-border bg-card px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex items-end gap-2">
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
+            maxLength={2000}
+            aria-label="문의 메시지"
             placeholder="궁금한 점을 입력해 주세요"
             className="min-h-[44px] max-h-32 flex-1 resize-none rounded-2xl border border-border bg-white px-4 py-2.5 text-sm text-primary placeholder:text-primary/40 focus:border-accent focus:outline-none"
             disabled={sending}

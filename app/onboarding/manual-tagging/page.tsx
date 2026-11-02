@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { LinkButton } from "@/components/ui/link-button";
 
-import { Button } from "@/components/ui/button";
 
 export default function ManualTaggingFallbackPage() {
   return (
@@ -10,21 +9,19 @@ export default function ManualTaggingFallbackPage() {
       <div className="space-y-5">
         <header className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight text-primary">
-            수동 태깅으로 계속할까요?
+            분석 없이 기록할까요?
           </h1>
           <p className="text-sm leading-relaxed text-primary/70">
-            자동 분석이 여러 번 지연되어 수동 입력 모드로 전환했어요. 직접 태깅해도
-            다이어리 기록은 동일하게 저장됩니다.
+            분석이 지연되고 있어요. 선택한 사진과 메모를 먼저 저장하고
+            기록을 이어갈 수 있어요.
           </p>
         </header>
 
         <div className="rounded-2xl border border-border p-4 text-sm text-primary/75">
-          다음 단계에서 아이템, 컬러, 분위기를 직접 선택해 저장할 수 있습니다.
+          다음 화면에서 사진을 확인하고 메모를 남길 수 있어요.
         </div>
 
-        <Link href="/onboarding/result">
-          <Button className="h-11 w-full">수동 태깅 시작</Button>
-        </Link>
+        <LinkButton href="/onboarding/result" className="h-11 w-full">사진과 메모 기록하기</LinkButton>
       </div>
     </main>
   );

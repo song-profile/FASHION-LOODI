@@ -58,7 +58,7 @@ const config: Config = {
         },
       },
       boxShadow: {
-        soft: "0 10px 26px rgba(28, 44, 70, 0.10)",
+        soft: "0 4px 20px rgba(28, 44, 70, 0.035)",
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -1,0 +1,170 @@
+import { test, expect, type Page, type Locator } from '@playwright/test';
+import * as nextEnv from '@next/env';
+nextEnv.loadEnvConfig(process.cwd());
+
+async function visibleAction(page: Page, action: Locator) {
+  await expect(action).toBeVisible();
+  await expect.poll(async () => action.evaluate(el => { const r = el.getBoundingClientRect(); return r.y >= 0 && r.bottom <= innerHeight + 1; })).toBe(true);
+  const rect = await action.boundingBox();
+  const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+  expect(rect, 'button has a layout box').not.toBeNull();
+  expect(rect!.height, 'tap target height').toBeGreaterThanOrEqual(44);
+  expect(rect!.y, 'button above viewport').toBeGreaterThanOrEqual(0);
+  expect(rect!.y + rect!.height, 'button below viewport').toBeLessThanOrEqual(viewport.height + 1);
+  const hit = await action.evaluate(el => { const r = el.getBoundingClientRect(); const top = document.elementFromPoint(r.x + r.width/2, r.y+r.height/2); return top === el || el.contains(top); });
+  expect(hit, 'button hidden behind another element').toBe(true);
+}
+async function capture(page: Page, step: string) {
+  await page.waitForTimeout(220);
+  await page.screenshot({ path: `artifacts/journey/${test.info().project.name || "phone"}/${step}.png`, fullPage: false });
+  const layout = await page.evaluate(() => ({ path: location.pathname, viewport: [innerWidth,innerHeight], scroll: [scrollX,scrollY], content: [document.documentElement.scrollWidth,document.documentElement.scrollHeight], nav: document.querySelector('nav')?.getBoundingClientRect().toJSON(), buttons: Array.from(document.querySelectorAll('button,input')).filter(el => el.getClientRects().length).map(el => ({ text: el.textContent?.trim().slice(0,40) || el.getAttribute('placeholder'), rect: el.getBoundingClientRect().toJSON() })) }));
+  await test.info().attach(step, { body: JSON.stringify(layout,null,2), contentType:'application/json' });
+}
+async function backend(page: Page, existing = false) {
+  let user = { id:'22222222-2222-4222-8222-222222222222', aud:'authenticated', role:'authenticated', email:'journey@users.loodi.app', app_metadata:{provider:'email'}, user_metadata:(existing ? {nickname:'루디',full_name:'테스트',gender:'선택 안 함',birth_date:'2000-01-01',onboarding_completed:true} : {}) as Record<string,unknown>, created_at:new Date().toISOString() };
+  const session = () => ({access_token:`eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({sub:user.id,aud:'authenticated',role:'authenticated',exp:Math.floor(Date.now()/1000)+3600,iat:Math.floor(Date.now()/1000)})).toString('base64url')}.test`,refresh_token:'journey-test',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user});
+  await page.route('**/*',async route => {
+    const request = route.request(); const url = new URL(request.url());
+    if(url.pathname.startsWith('/auth/v1/')) {
+      const body = request.method()==='GET' ? {} : request.postDataJSON() || {};
+      if(url.pathname.endsWith('/signup')) { user={...user,user_metadata:body.data||{}}; return route.fulfill({json:session()}); }
+      if(url.pathname.endsWith('/token')) return route.fulfill({json:session()});
+      if(url.pathname.endsWith('/user')) { if(request.method()==='PUT') user={...user,user_metadata:{...user.user_metadata,...body.data}}; return route.fulfill({json:user}); }
+      if(url.pathname.endsWith('/logout')) return route.fulfill({status:204});
+    }
+    if(url.pathname==='/api/contact-chat') return route.fulfill({json:{reply:'문의 내용을 확인했어요.'}});
+    if(url.pathname==='/api/analyze-outfit') return route.fulfill({json:{items:[{category:'상의',name:'화이트 셔츠'}],colors:['화이트'],style:['미니멀'],season:'봄',mood:['차분한'],description:'화이트 셔츠를 활용한 미니멀 룩입니다.'}});
+    if(url.pathname==='/api/recommend-outfit') return route.fulfill({json:{reasoning:'오늘 날씨에는 가벼운 셔츠가 잘 어울려요.',recommendedColors:['화이트','네이비'],recommendedItems:[{category:'상의',name:'화이트 셔츠',searchKeyword:'화이트 셔츠'}]}});
+    if(url.hostname==='127.0.0.1') return route.continue();
+    if(url.hostname==='api.open-meteo.com') return route.fulfill({json:{current:{weather_code:0,temperature_2m:21}}});
+    if(url.hostname==='ipapi.co') return route.fulfill({json:{latitude:37.5,longitude:127,city:'서울'}});
+    return route.abort();
+  });
+}
+
+test('execute the whole first-use journey with visible reachable actions', async ({page}) => {
+  test.setTimeout(90000);
+  await backend(page);
+  page.on('dialog',dialog=>dialog.accept());
+  await page.goto('/');
+  await expect(page.getByRole('button',{name:'시작하기',exact:true})).toBeVisible();
+  await capture(page,'01-welcome');
+  await visibleAction(page,page.getByRole('button',{name:'시작하기',exact:true}));
+  await page.getByRole('button',{name:'시작하기',exact:true}).click();
+  await expect(page).toHaveURL(/\/signup\/?$/);
+  await capture(page,'02-signup');
+  await page.getByLabel('아이디',{exact:true}).fill('journey');
+  await page.getByLabel('비밀번호',{exact:true}).fill('Password-test-123!');
+  await page.getByLabel('비밀번호 확인',{exact:true}).fill('Password-test-123!');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button',{name:'회원가입',exact:true}).last().scrollIntoViewIfNeeded();
+  await capture(page,'03-signup-action');
+  await visibleAction(page,page.getByRole('button',{name:'회원가입',exact:true}).last());
+  await page.getByRole('button',{name:'회원가입',exact:true}).last().click();
+  await expect(page).toHaveURL(/\/profile\/setup/);
+  await page.getByLabel('닉네임',{exact:true}).fill('루디');
+  await page.getByLabel('이름',{exact:true}).fill('테스트');
+  await page.getByRole('button',{name:'선택 안 함',exact:true}).click();
+  await page.getByLabel('생년월일',{exact:true}).fill('2000-01-01');
+  await page.getByRole('button',{name:'저장하기',exact:true}).scrollIntoViewIfNeeded();
+  await capture(page,'04-profile');
+  await visibleAction(page,page.getByRole('button',{name:'저장하기',exact:true}));
+  await page.getByRole('button',{name:'저장하기',exact:true}).click();
+  await expect(page).toHaveURL(/\/onboarding\/style\/?$/);
+  await page.getByText('Casual',{exact:true}).click();
+  await capture(page,'05-style');
+  await visibleAction(page,page.getByRole('button',{name:'다음',exact:true}));
+  await page.getByRole('button',{name:'다음',exact:true}).click();
+  await expect(page).toHaveURL(/\/onboarding\/color\/?$/);
+  await page.getByText('Black',{exact:true}).click();
+  await capture(page,'06-color');
+  await visibleAction(page,page.getByRole('button',{name:'다음',exact:true}));
+  await page.getByRole('button',{name:'다음',exact:true}).click();
+  await expect(page).toHaveURL(/\/onboarding\/fit\/?$/);
+  await page.getByText('Regular',{exact:true}).click();
+  await capture(page,'07-fit');
+  await visibleAction(page,page.getByRole('button',{name:'내 스타일로 시작하기'}));
+  await page.getByRole('button',{name:'내 스타일로 시작하기'}).click();
+  await expect(page).toHaveURL(/\/home\/?$/);
+  await capture(page,'08-home');
+  const recommend = page.getByRole('button',{name:'오늘의 코디 추천받기'});
+  await expect(recommend).toBeEnabled();
+  await recommend.evaluate(element => element.scrollIntoView({ block: 'center' }));
+  await visibleAction(page,recommend);
+  await recommend.click();
+  await expect(page.getByText('오늘 날씨에는 가벼운 셔츠가 잘 어울려요.',{exact:true})).toBeVisible();
+  await capture(page,'08a-recommendation');
+  await page.getByRole('navigation').getByRole('link',{name:'룩 추가',exact:true}).click();
+  await page.locator('input[type=file]').last().setInputFiles('docs/assets/readme/home-recommendation.jpeg');
+  await capture(page,'09-record-photo');
+  await visibleAction(page,page.getByRole('button',{name:'AI로 착장 분석하기'}));
+  await page.getByRole('button',{name:'AI로 착장 분석하기'}).click();
+  await expect(page.getByText('분석을 마쳤어요',{exact:true})).toBeVisible();
+  await capture(page,'10-analysis');
+  await visibleAction(page,page.getByRole('button',{name:'메모 남기기'}));
+  await page.getByRole('button',{name:'메모 남기기'}).click();
+  await page.getByRole('textbox',{name:'룩 제목'}).fill('실행 순서 테스트 룩');
+  await page.getByRole('textbox',{name:'룩 메모'}).fill('기록 저장과 상세 이동 확인');
+  await capture(page,'11-record-note');
+  await visibleAction(page,page.getByRole('button',{name:'룩 저장하기'}));
+  await page.getByRole('button',{name:'룩 저장하기'}).click();
+  await expect(page).toHaveURL(/\/timeline/);
+  await expect(page.getByRole('heading',{name:'나의 기록',exact:true})).toBeVisible();
+  await capture(page,'12-timeline');
+  await page.getByRole('button',{name:'모아보기',exact:true}).click();
+  await page.getByRole('button').filter({has:page.getByAltText(/^outfit /)}).first().click();
+  const detail = page.getByRole('dialog',{name:'착장 상세'});
+  await expect(detail).toBeVisible();
+  await capture(page,'12a-detail');
+  await visibleAction(page,detail.getByRole('button',{name:'착장 상세 닫기'}));
+  await detail.getByRole('button',{name:'기록 수정'}).click();
+  await detail.getByRole('textbox',{name:'기록 제목'}).fill('수정한 테스트 룩');
+  const editSave = detail.getByRole('button',{name:'저장',exact:true});
+  await editSave.scrollIntoViewIfNeeded();
+  await visibleAction(page,editSave);
+  await editSave.click();
+  await expect(detail.getByText('수정한 테스트 룩',{exact:true})).toBeVisible();
+  await detail.getByRole('button',{name:'착장 상세 닫기'}).click();
+  await expect(detail).not.toBeVisible();
+  await page.getByRole('navigation').getByRole('link',{name:'스타일',exact:true}).click();
+  await expect(page).toHaveURL(/\/dna\/?$/);
+  await expect(page.getByRole('heading',{name:'나의 스타일',exact:true})).toBeVisible();
+  await capture(page,'13-dna');
+  await page.getByRole('navigation').getByRole('link',{name:'옷장',exact:true}).click();
+  await expect(page).toHaveURL(/\/closet\/?$/);
+  await page.getByRole('button',{name:'프로필 관리'}).click();
+  await capture(page,'14-closet');
+  await page.getByRole('link',{name:'이름과 개인정보 수정'}).click();
+  await expect(page).toHaveURL(/\/profile\/setup/);
+  await capture(page,'15-edit-profile');
+  await page.getByRole('link',{name:'뒤로',exact:true}).click();
+  await expect(page).toHaveURL(/\/closet\/?$/);
+  await page.getByRole('link',{name:/문의하기/}).click();
+  await expect(page).toHaveURL(/\/contact\/?$/);
+  await expect(page.getByRole('textbox',{name:'문의 메시지'})).toBeVisible();
+  await page.getByRole('textbox',{name:'문의 메시지'}).fill('기록 방법이 궁금해요');
+  await capture(page,'16-contact');
+  await visibleAction(page,page.getByRole('button',{name:'메시지 전송'}));
+  await page.getByRole('button',{name:'메시지 전송'}).click();
+  await expect(page.getByText('문의 내용을 확인했어요.',{exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'뒤로 가기'}).click();
+  await expect(page).toHaveURL(/\/closet\/?$/);
+});
+
+test('returning user can open, close and submit login without hidden buttons', async ({page}) => {
+  await backend(page,true);
+  await page.goto('/');
+  await page.getByRole('button',{name:'로그인',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'로그인'});
+  await expect(dialog).toBeVisible();
+  await visibleAction(page,dialog.getByRole('button',{name:'로그인 닫기'}));
+  await dialog.getByLabel('아이디',{exact:true}).fill('journey');
+  await dialog.getByLabel('비밀번호',{exact:true}).fill('Password-test-123!');
+  const action=dialog.getByRole('button',{name:'로그인',exact:true});
+  await action.scrollIntoViewIfNeeded();
+  await capture(page,'17-returning-login');
+  await visibleAction(page,action);
+  await action.click();
+  await expect(page).toHaveURL(/\/home\/?$/);
+  await expect(page.getByRole('navigation',{name:'주요 메뉴'})).toBeVisible();
+});

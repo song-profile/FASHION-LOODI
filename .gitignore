@@ -19,3 +19,19 @@ pnpm-debug.log*
 
 # macOS
 .DS_Store
+
+# Native build output
+.mobile-build/
+mobile/dist/
+ios/App/Pods/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App.xcworkspace/xcuserdata/
+DerivedData/
+
+# UI validation output
+artifacts/ui/
+test-results/
+playwright-report/
+
+artifacts/journey/

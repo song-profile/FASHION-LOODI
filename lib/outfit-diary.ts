@@ -1,6 +1,7 @@
 "use client";
 
 import { scopedLocalStorageKey } from "@/lib/user-storage";
+import { diaryEntrySchema, diaryEntriesSchema, mergeDiaryBackup } from './diary-backup';
 
 const STORAGE_KEY = "loodi_outfit_diary";
 
@@ -38,13 +39,23 @@ export function formatDateKey(date: Date): string {
 export function readDiaryEntries(): DiaryEntry[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(scopedLocalStorageKey(STORAGE_KEY));
-    if (!raw) return [];
-    const entries = JSON.parse(raw) as DiaryEntry[];
-    return entries.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return readStoredEntries();
   } catch {
     return [];
   }
+}
+
+function readStoredEntries(): DiaryEntry[] {
+  const raw = window.localStorage.getItem(scopedLocalStorageKey(STORAGE_KEY));
+  if (!raw) return [];
+  return diaryEntriesSchema.parse(JSON.parse(raw)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function restoreDiaryEntries(incoming: DiaryEntry[]): number {
+  const existing = readStoredEntries();
+  const merged = mergeDiaryBackup(existing, diaryEntriesSchema.parse(incoming));
+  window.localStorage.setItem(scopedLocalStorageKey(STORAGE_KEY), JSON.stringify(merged));
+  return merged.length - existing.length;
 }
 
 export function appendDiaryEntry(
@@ -60,8 +71,8 @@ export function appendDiaryEntry(
     createdAt: new Date().toISOString(),
   };
   try {
-    const existing = readDiaryEntries();
-    const next = [entry, ...existing];
+    const existing = readStoredEntries();
+    const next = diaryEntriesSchema.parse([entry, ...existing]);
     window.localStorage.setItem(scopedLocalStorageKey(STORAGE_KEY), JSON.stringify(next));
     return entry;
   } catch (err) {
@@ -77,7 +88,7 @@ export function getEntriesByDateString(dateStr: string): DiaryEntry[] {
 export function deleteDiaryEntry(id: string): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const entries = readDiaryEntries();
+    const entries = readStoredEntries();
     const next = entries.filter((entry) => entry.id !== id);
     if (next.length === entries.length) return false;
     window.localStorage.setItem(scopedLocalStorageKey(STORAGE_KEY), JSON.stringify(next));
@@ -94,15 +105,15 @@ export function updateDiaryEntry(
 ): DiaryEntry | null {
   if (typeof window === "undefined") return null;
   try {
-    const entries = readDiaryEntries();
+    const entries = readStoredEntries();
     let updated: DiaryEntry | null = null;
     const next = entries.map((entry) => {
       if (entry.id !== id) return entry;
-      updated = {
+      updated = diaryEntrySchema.parse({
         ...entry,
         ...patch,
         updatedAt: new Date().toISOString(),
-      };
+      });
       return updated;
     });
     if (!updated) return null;
@@ -147,11 +158,11 @@ export type StreakLevel = {
 };
 
 const LEVEL_PERKS = [
-  { entries: 0, current: "오늘부터 LOODI와 함께", next: "AI 추천 횟수 +1" },
-  { entries: 3, current: "AI 추천 1일 3회", next: "AI 추천 1일 5회 + 컬러 팔레트 잠금 해제" },
-  { entries: 7, current: "AI 추천 1일 5회 · 컬러 팔레트", next: "스타일 DNA 그래프 + 무드 인사이트" },
-  { entries: 14, current: "스타일 DNA + 무드 인사이트", next: "월간 코디 리포트 PDF" },
-  { entries: 30, current: "월간 리포트 · 모든 기능 해제", next: "최고 레벨 달성!" },
+  { entries: 0, current: "취향을 발견하는 시작", next: "3일의 스타일 기록" },
+  { entries: 3, current: "차곡차곡 쌓이는 취향", next: "7일의 스타일 기록" },
+  { entries: 7, current: "일주일의 스타일 아카이브", next: "14일의 스타일 기록" },
+  { entries: 14, current: "나만의 스타일을 찾는 중", next: "30일의 스타일 기록" },
+  { entries: 30, current: "한 달의 스타일 아카이브", next: "최고 레벨 달성!" },
 ];
 
 export function computeStreakLevel(entries: DiaryEntry[]): StreakLevel {

@@ -1,19 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
-import { requireAllowedApiUser } from "@/lib/access-control";
+import { withAiRequest } from "@/lib/server/ai-request";
+import { chatSchema } from "@/lib/server/request-validation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
-
-type ChatRequest = {
-  messages: ChatMessage[];
-};
 
 const SYSTEM_PROMPT = `당신은 LOODI(루디) 패션 다이어리 앱의 친근한 AI 고객지원 챗봇입니다.
 
@@ -33,11 +25,7 @@ LOODI 앱 소개:
 - 모르는 정책/가격/일정 등 사실 확인이 필요한 내용은 추측하지 않습니다.`;
 
 export async function POST(req: Request) {
-  const access = await requireAllowedApiUser(req);
-  if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status });
-  }
-
+  return withAiRequest(req, chatSchema, async (body) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -46,34 +34,9 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: ChatRequest;
-  try {
-    body = (await req.json()) as ChatRequest;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  if (!Array.isArray(body.messages) || body.messages.length === 0) {
-    return NextResponse.json(
-      { error: "messages array is required" },
-      { status: 400 },
-    );
-  }
-
   const last = body.messages[body.messages.length - 1];
-  if (last.role !== "user") {
-    return NextResponse.json(
-      { error: "last message must be from user" },
-      { status: 400 },
-    );
-  }
-
-  const history = body.messages.slice(0, -1).map((message) => ({
-    role: message.role === "assistant" ? ("model" as const) : ("user" as const),
-    parts: [{ text: message.content }],
-  }));
-
-  const ai = new GoogleGenAI({ apiKey });
+  const history = body.messages.slice(0, -1).map(message => ({ role: message.role === "assistant" ? "model" as const : "user" as const, parts: [{ text: message.content }] }));
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 25000, retryOptions: { attempts: 1 } } });
 
   try {
     const chat = ai.chats.create({
@@ -82,6 +45,7 @@ export async function POST(req: Request) {
       config: {
         systemInstruction: SYSTEM_PROMPT,
         temperature: 0.5,
+        maxOutputTokens: 1024,
       },
     });
 
@@ -96,11 +60,12 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ reply: text });
-  } catch (err) {
-    console.error("[contact-chat] failed:", err);
+  } catch {
+
     return NextResponse.json(
       { error: "AI 챗봇 응답을 불러오지 못했어요. 잠시 후 다시 시도해 주세요." },
       { status: 500 },
     );
   }
+  });
 }

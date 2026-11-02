@@ -1,6 +1,9 @@
 "use client";
+import { LinkButton } from '@/components/ui/link-button';
+import { scoreEntryStyles } from '@/lib/home-insights';
+import { ScreenHeader } from "@/components/layout/screen-header";
 
-import { ChartNoAxesColumnIncreasing, Dna, Sparkles } from "lucide-react";
+import { ChartNoAxesColumnIncreasing, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,7 +71,7 @@ const COLOR_SWATCHES: Array<{
 function swatchForColor(color: string) {
   const normalized = color.trim().toLowerCase();
   return (
-    COLOR_SWATCHES.find((swatch) =>
+    [...COLOR_SWATCHES].sort((a, b) => Math.max(...b.tokens.map(token => token.length)) - Math.max(...a.tokens.map(token => token.length))).find((swatch) =>
       swatch.tokens.some((token) => normalized.includes(token.toLowerCase())),
     ) ?? {
       background: "#f3eee4",
@@ -118,34 +121,6 @@ function percentageEntries(entries: Array<[string, number]>) {
     count,
     percentage,
   }));
-}
-
-function scoreEntryStyles(entry: DiaryEntry) {
-  const text = [
-    ...(entry.tags ?? []),
-    ...(entry.colors ?? []),
-    ...(entry.items ?? []).map((item) => item.name),
-    entry.styleNote,
-    entry.memo,
-    entry.title,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const scores = new Map<string, number>();
-  for (const style of STYLE_KEYWORDS) {
-    const score = style.tokens.reduce((sum, token) => {
-      return text.includes(token.toLowerCase()) ? sum + 1 : sum;
-    }, 0);
-    if (score > 0) scores.set(style.label, score);
-  }
-
-  if (scores.size === 0 && entry.tags?.length) {
-    increment(scores, entry.tags[0], 1);
-  }
-
-  return scores;
 }
 
 function monthLabel(dateKey: string) {
@@ -247,19 +222,8 @@ export default function StyleDnaPage() {
 
   return (
     <div className="space-y-5">
-      <section className="diary-surface rounded-lg border border-border px-4 py-4 shadow-soft">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <span className="diary-label">STYLE REPORT</span>
-            <h1 className="mt-3 text-2xl font-semibold text-primary">Style DNA</h1>
-            <p className="mt-1 text-sm text-primary/60">
-              기록된 착장에서 반복되는 취향 신호를 모아봤어요.
-            </p>
-          </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card text-accent shadow-soft">
-            <Dna size={22} />
-          </div>
-        </div>
+      <section className="space-y-3">
+        <ScreenHeader eyebrow="STYLE NOTES" title="나의 스타일" description="차곡차곡 쌓인 기록에서 발견한 취향." />
       </section>
 
       {dna.entryCount === 0 ? (
@@ -269,8 +233,9 @@ export default function StyleDnaPage() {
               아직 분석할 기록이 없어요.
             </p>
             <p className="text-sm text-primary/60">
-              Record에서 사진을 저장하면 그 기록만 바탕으로 Style DNA가 만들어집니다.
+              착장을 기록하면 자주 입는 스타일과 나만의 컬러가 보여요.
             </p>
+            <LinkButton href="/record" className="mt-4">첫 룩 기록하기</LinkButton>
           </CardContent>
         </Card>
       ) : (
@@ -282,7 +247,7 @@ export default function StyleDnaPage() {
                   <p className="text-[11px] font-semibold uppercase text-primary/45">
                     Distribution
                   </p>
-                  <CardTitle className="mt-1 text-xl">Style Signature</CardTitle>
+                  <CardTitle className="mt-1 text-xl">나의 스타일 취향</CardTitle>
                 </div>
                 <Badge className="border border-highlight/20 bg-highlight/10 text-primary">
                   {dna.entryCount} looks
@@ -290,10 +255,10 @@ export default function StyleDnaPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="grid gap-4 md:grid-cols-[220px_1fr] md:items-center">
-                <div className="relative mx-auto h-56 w-56 rounded-full bg-card p-3 shadow-[0_24px_70px_rgba(28,44,70,0.14)]">
+              <div className="grid gap-6">
+                <div className="relative mx-auto h-56 w-56 rounded-full bg-soft p-3">
                   <div className="absolute -right-3 top-8 rotate-6 rounded-sm border border-border bg-secondary px-2 py-1 text-[10px] font-semibold text-primary/70 shadow-soft">
-                    TOP {dna.styles[0]?.percentage ?? 0}%
+                    {dna.styles[0]?.percentage ?? 0}%
                   </div>
                   <div
                     className="h-full w-full rounded-full shadow-[inset_0_0_0_1px_rgba(255,255,255,0.60)]"
@@ -381,7 +346,7 @@ export default function StyleDnaPage() {
 
           <Card className="diary-surface">
             <CardHeader>
-              <CardTitle>Color Palette</CardTitle>
+              <CardTitle>자주 입는 색</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
               {dna.colors.length > 0 ? (
@@ -415,7 +380,7 @@ export default function StyleDnaPage() {
                 <p className="text-[11px] font-semibold uppercase text-primary/45">
                   Monthly Flow
                 </p>
-                <CardTitle className="mt-1 text-xl">Style Evolution</CardTitle>
+                <CardTitle className="mt-1 text-xl">스타일의 변화</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-5">

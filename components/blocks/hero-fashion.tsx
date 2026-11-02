@@ -1,4 +1,9 @@
 "use client";
+import { PageActions } from "@/components/layout/page-actions";
+import { X } from "lucide-react";
+import { useDialog } from "@/hooks/use-dialog";
+
+import { postLoginPath } from "@/lib/auth-routing";
 
 import { AnimatePresence, motion } from "motion/react";
 import { CalendarDays, Hexagon, Star } from "lucide-react";
@@ -62,29 +67,8 @@ function GoogleMark() {
   );
 }
 
-const revealContainer = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.06,
-    },
-  },
-};
-
-const revealItem = {
-  hidden: { opacity: 0, y: 12 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.35, ease: "easeOut" as const },
-  },
-};
-
 export default function HomePage() {
   const router = useRouter();
-  const [booting, setBooting] = useState(true);
   const [authOpen, setAuthOpen] = useState(false);
   const [isSubmittingLogin, setIsSubmittingLogin] = useState(false);
   const [isSubmittingGoogle, setIsSubmittingGoogle] = useState(false);
@@ -97,10 +81,9 @@ export default function HomePage() {
   const [resumeRoute, setResumeRoute] = useState<string | null>(null);
   const [showResume, setShowResume] = useState(false);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setBooting(false), 220);
-    return () => window.clearTimeout(timer);
-  }, []);
+  const dialogRef = useDialog(authOpen, () => setAuthOpen(false));
+
+
 
   useEffect(() => {
     const redirectSignedInUser = async () => {
@@ -115,27 +98,7 @@ export default function HomePage() {
       setCurrentUserStorageId(user.id);
 
       const metadata = user.user_metadata ?? {};
-      const completedOnboarding = metadata.onboarding_completed === true;
-      const hasProfile =
-        typeof metadata.nickname === "string" &&
-        metadata.nickname.trim().length > 0 &&
-        typeof metadata.full_name === "string" &&
-        metadata.full_name.trim().length > 0 &&
-        typeof metadata.gender === "string" &&
-        metadata.gender.trim().length > 0 &&
-        typeof metadata.birth_date === "string" &&
-        metadata.birth_date.trim().length > 0;
-
-      if (!hasProfile) {
-        router.replace(
-          `/profile/setup?next=${encodeURIComponent(
-            completedOnboarding ? "/home" : "/onboarding/style"
-          )}`
-        );
-        return;
-      }
-
-      router.replace(completedOnboarding ? "/home" : "/onboarding/style");
+      router.replace(postLoginPath(metadata));
     };
 
     redirectSignedInUser();
@@ -170,27 +133,7 @@ export default function HomePage() {
       return;
     }
     const metadata = data.user?.user_metadata ?? {};
-    const completedOnboarding = metadata.onboarding_completed === true;
-    const hasProfile =
-      typeof metadata.nickname === "string" &&
-      metadata.nickname.trim().length > 0 &&
-      typeof metadata.full_name === "string" &&
-      metadata.full_name.trim().length > 0 &&
-      typeof metadata.gender === "string" &&
-      metadata.gender.trim().length > 0 &&
-      typeof metadata.birth_date === "string" &&
-      metadata.birth_date.trim().length > 0;
-
-    if (!hasProfile) {
-      router.replace(
-        `/profile/setup?next=${encodeURIComponent(
-          completedOnboarding ? "/home" : "/onboarding/style"
-        )}`
-      );
-      return;
-    }
-
-    router.replace(completedOnboarding ? "/home" : "/onboarding/style");
+    router.replace(postLoginPath(metadata));
   };
 
   const handleEmailLogin = async () => {
@@ -225,6 +168,7 @@ export default function HomePage() {
   };
 
   const handleGoogleLogin = async () => {
+    if (process.env.NEXT_PUBLIC_NATIVE_APP === "true") return;
     setIsSubmittingGoogle(true);
 
     const nextPath = "/home";
@@ -256,32 +200,16 @@ export default function HomePage() {
     setShowResume(false);
   };
 
-  if (booting) {
-    return (
-      <div className="min-h-screen bg-white px-4 py-6">
-        <div className="mx-auto w-full max-w-md space-y-3">
-          <div className="h-6 w-28 animate-pulse rounded bg-slate-100" />
-          <div className="h-16 animate-pulse rounded-2xl bg-slate-100" />
-          <div className="h-16 animate-pulse rounded-2xl bg-slate-100" />
-          <div className="h-16 animate-pulse rounded-2xl bg-slate-100" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background pb-32">
-      <motion.main
-        variants={revealContainer}
-        initial="hidden"
-        animate="show"
-        className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-md flex-col justify-center px-8 py-10"
+    <div className="min-h-dvh bg-background">
+      <main
+        className="mx-auto flex min-h-[calc(100dvh-164px)] w-full max-w-md flex-col justify-center px-6 py-8"
       >
-        <motion.header variants={revealItem} className="text-center">
-          <h1 className="font-serif text-7xl font-black tracking-tight text-primary">
+        <header className="text-center">
+          <h1 className="text-6xl font-semibold tracking-tight text-primary">
             LOODI
           </h1>
-          <p className="mt-3 font-serif text-xl font-semibold italic text-accent">
+          <p className="mt-3 text-base font-medium text-accent">
             Your Style, Recorded.
           </p>
           <p className="mt-5 text-xs font-medium leading-6 text-muted-foreground">
@@ -289,9 +217,9 @@ export default function HomePage() {
             <br />
             AI와 함께하는 나만의 패션 다이어리
           </p>
-        </motion.header>
+        </header>
 
-        <motion.section variants={revealItem} className="mt-16 space-y-6">
+        <section className="mt-10 space-y-5">
           {showResume ? (
             <div className="rounded-2xl border border-border bg-soft px-4 py-3">
               <p className="text-sm text-primary/75">
@@ -323,25 +251,24 @@ export default function HomePage() {
               key={card.title}
               className="flex items-center gap-4"
             >
-              <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-2xl bg-soft text-accent">
-                <Icon size={28} strokeWidth={1.8} />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-soft text-accent">
+                <Icon size={22} strokeWidth={1.8} />
               </div>
               <div>
-                <h2 className="text-lg font-bold tracking-tight text-primary">
+                <h2 className="text-base font-semibold tracking-tight text-primary">
                   {card.title}
                 </h2>
-                <p className="mt-1 text-base font-semibold leading-relaxed text-muted-foreground">
+                <p className="mt-1 text-sm font-normal leading-relaxed text-muted-foreground">
                   {card.description}
                 </p>
               </div>
             </article>
             );
           })}
-        </motion.section>
-      </motion.main>
+        </section>
+      </main>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/80 bg-background/95 px-4 py-4 backdrop-blur">
-        <div className="mx-auto w-full max-w-md space-y-3">
+      <PageActions>
           <Button
             className="h-12 w-full rounded-lg bg-primary text-base font-bold text-white hover:bg-primary/90"
             onClick={() => router.push("/signup")}
@@ -355,8 +282,7 @@ export default function HomePage() {
           >
             로그인
           </button>
-        </div>
-      </div>
+      </PageActions>
 
       <AnimatePresence>
         {authOpen ? (
@@ -370,15 +296,15 @@ export default function HomePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             />
-            <motion.div
+            <motion.div ref={dialogRef} role="dialog" aria-modal="true" aria-label="로그인" tabIndex={-1}
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ duration: 0.26, ease: "easeOut" }}
-              className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-white px-5 pb-7 pt-4"
+              className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[90dvh] max-w-lg overflow-y-auto rounded-t-3xl bg-white px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))] pt-4"
             >
               <div className="mx-auto w-full max-w-md">
-                <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-primary/12" />
+                <div className="flex justify-end"><button type="button" aria-label="로그인 닫기" onClick={() => setAuthOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground"><X size={20} /></button></div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary/40">
                     LOODI
@@ -391,12 +317,13 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="mt-7 grid gap-2">
+                <div className="mt-5 grid gap-2">
                   <button
                     type="button"
+                    style={process.env.NEXT_PUBLIC_NATIVE_APP === "true" ? { display: "none" } : undefined}
                     onClick={handleGoogleLogin}
                     disabled={isSubmittingGoogle}
-                    className="flex h-13 items-center justify-between rounded-lg border border-[#d7dce5] px-4 text-sm font-semibold text-primary transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-[52px] items-center justify-between rounded-lg border border-[#d7dce5] px-4 text-sm font-semibold text-primary transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <span>
                       {isSubmittingGoogle
@@ -423,7 +350,7 @@ export default function HomePage() {
                   <input
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    className="h-13 w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-[15px] text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
+                    className="h-[52px] w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-base text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
                     placeholder="아이디 입력"
                     type="text"
                     autoComplete="username"
@@ -436,14 +363,14 @@ export default function HomePage() {
                   <input
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    className="h-13 w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-[15px] text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
+                    className="h-[52px] w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-base text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
                     placeholder="비밀번호 입력"
                     type="password"
                     autoComplete="current-password"
                   />
                   </label>
                   <Button
-                    className="h-13 w-full rounded-lg bg-primary text-base font-bold text-white hover:bg-primary/90"
+                    className="h-[52px] w-full rounded-lg bg-primary text-base font-bold text-white hover:bg-primary/90"
                     onClick={handleEmailLogin}
                     disabled={isSubmittingLogin}
                   >

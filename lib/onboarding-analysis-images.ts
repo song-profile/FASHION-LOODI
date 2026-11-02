@@ -1,4 +1,5 @@
 "use client";
+import { scopedLocalStorageKey } from "@/lib/user-storage";
 
 const IMAGES_KEY = "loodi_analysis_pending_images";
 const RESULT_KEY = "loodi_analysis_result";
@@ -100,7 +101,7 @@ export async function compressImageForUpload(
 export function setPendingImages(images: PendingImage[]) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(IMAGES_KEY, JSON.stringify(images));
+    window.sessionStorage.setItem(scopedLocalStorageKey(IMAGES_KEY), JSON.stringify(images));
   } catch (err) {
     console.error("Failed to persist pending images", err);
   }
@@ -109,7 +110,7 @@ export function setPendingImages(images: PendingImage[]) {
 export function readPendingImages(): PendingImage[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.sessionStorage.getItem(IMAGES_KEY);
+    const raw = window.sessionStorage.getItem(scopedLocalStorageKey(IMAGES_KEY));
     return raw ? (JSON.parse(raw) as PendingImage[]) : [];
   } catch {
     return [];
@@ -118,13 +119,13 @@ export function readPendingImages(): PendingImage[] {
 
 export function clearPendingImages() {
   if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem(IMAGES_KEY);
+  window.sessionStorage.removeItem(scopedLocalStorageKey(IMAGES_KEY));
 }
 
 export function setAnalysisResult(result: AggregatedAnalysis) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(RESULT_KEY, JSON.stringify(result));
+    window.sessionStorage.setItem(scopedLocalStorageKey(RESULT_KEY), JSON.stringify(result));
   } catch (err) {
     console.error("Failed to persist analysis result", err);
   }
@@ -133,7 +134,7 @@ export function setAnalysisResult(result: AggregatedAnalysis) {
 export function readAnalysisResult(): AggregatedAnalysis | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(RESULT_KEY);
+    const raw = window.sessionStorage.getItem(scopedLocalStorageKey(RESULT_KEY));
     return raw ? (JSON.parse(raw) as AggregatedAnalysis) : null;
   } catch {
     return null;
@@ -142,13 +143,13 @@ export function readAnalysisResult(): AggregatedAnalysis | null {
 
 export function clearAnalysisResult() {
   if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem(RESULT_KEY);
+  window.sessionStorage.removeItem(scopedLocalStorageKey(RESULT_KEY));
 }
 
 export function setOutfitPhotos(images: PendingImage[]) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(OUTFIT_PHOTOS_KEY, JSON.stringify(images));
+    window.sessionStorage.setItem(scopedLocalStorageKey(OUTFIT_PHOTOS_KEY), JSON.stringify(images));
   } catch (err) {
     console.error("Failed to persist outfit photos", err);
   }
@@ -157,7 +158,7 @@ export function setOutfitPhotos(images: PendingImage[]) {
 export function readOutfitPhotos(): PendingImage[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.sessionStorage.getItem(OUTFIT_PHOTOS_KEY);
+    const raw = window.sessionStorage.getItem(scopedLocalStorageKey(OUTFIT_PHOTOS_KEY));
     return raw ? (JSON.parse(raw) as PendingImage[]) : [];
   } catch {
     return [];
@@ -166,7 +167,7 @@ export function readOutfitPhotos(): PendingImage[] {
 
 export function clearOutfitPhotos() {
   if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem(OUTFIT_PHOTOS_KEY);
+  window.sessionStorage.removeItem(scopedLocalStorageKey(OUTFIT_PHOTOS_KEY));
 }
 
 export function toDataUrl(image: PendingImage): string {

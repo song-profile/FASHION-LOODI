@@ -1,7 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { NextResponse } from "next/server";
 
-import { requireAllowedApiUser } from "@/lib/access-control";
+import { withAiRequest } from "@/lib/server/ai-request";
+import { recommendationSchema } from "@/lib/server/request-validation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -106,24 +107,13 @@ function isTemporaryModelError(message: string) {
 }
 
 export async function POST(req: Request) {
-  const access = await requireAllowedApiUser(req);
-  if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status });
-  }
-
+  return withAiRequest(req, recommendationSchema, async (body) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { error: "GEMINI_API_KEY is not configured on the server." },
       { status: 500 },
     );
-  }
-
-  let body: RecommendInput;
-  try {
-    body = (await req.json()) as RecommendInput;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const gender = body.gender ?? "선택 안 함";
@@ -163,7 +153,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 25000, retryOptions: { attempts: 1 } } });
 
   try {
     const response = await ai.models.generateContent({
@@ -172,6 +162,7 @@ export async function POST(req: Request) {
       config: {
         systemInstruction: SYSTEM_PROMPT,
         temperature: 0.6,
+        maxOutputTokens: 2048,
         responseMimeType: "application/json",
         responseSchema: RESPONSE_SCHEMA,
       },
@@ -202,4 +193,5 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+  });
 }

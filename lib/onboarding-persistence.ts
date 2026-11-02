@@ -1,3 +1,4 @@
+import { scopedLocalStorageKey } from "@/lib/user-storage";
 export type OnboardingStepId =
   | "welcome"
   | "survey_style"
@@ -56,7 +57,7 @@ const defaultState: OnboardingLocalState = {
 export function readOnboardingLocalState(): OnboardingLocalState {
   if (typeof window === "undefined") return defaultState;
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = window.localStorage.getItem(scopedLocalStorageKey(KEY));
     if (!raw) return defaultState;
     const parsed = JSON.parse(raw) as Partial<OnboardingLocalState>;
     return {
@@ -118,12 +119,12 @@ export function writeOnboardingLocalState(
       : ({ ...current, ...patch } as OnboardingLocalState);
   next.updatedAt = Date.now();
   next.version = 1;
-  window.localStorage.setItem(KEY, JSON.stringify(next));
+  window.localStorage.setItem(scopedLocalStorageKey(KEY), JSON.stringify(next));
 }
 
 export function clearOnboardingLocalState() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(KEY);
+  window.localStorage.removeItem(scopedLocalStorageKey(KEY));
 }
 
 export function isOnboardingStateStale(state: OnboardingLocalState) {

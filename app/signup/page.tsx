@@ -1,5 +1,8 @@
 "use client";
 
+import { BackLink } from "@/components/navigation/back-link";
+import { postLoginPath } from "@/lib/auth-routing";
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -68,27 +71,7 @@ export default function SignupPage() {
       return;
     }
     const metadata = data.user?.user_metadata ?? {};
-    const completedOnboarding = metadata.onboarding_completed === true;
-    const hasProfile =
-      typeof metadata.nickname === "string" &&
-      metadata.nickname.trim().length > 0 &&
-      typeof metadata.full_name === "string" &&
-      metadata.full_name.trim().length > 0 &&
-      typeof metadata.gender === "string" &&
-      metadata.gender.trim().length > 0 &&
-      typeof metadata.birth_date === "string" &&
-      metadata.birth_date.trim().length > 0;
-
-    if (!hasProfile) {
-      router.replace(
-        `/profile/setup?next=${encodeURIComponent(
-          completedOnboarding ? "/home" : "/onboarding/style"
-        )}`
-      );
-      return;
-    }
-
-    router.replace(completedOnboarding ? "/home" : "/onboarding/style");
+    router.replace(postLoginPath(metadata));
   };
 
   const handleSignup = async () => {
@@ -200,6 +183,7 @@ export default function SignupPage() {
   };
 
   const handleGoogleLogin = async () => {
+    if (process.env.NEXT_PUBLIC_NATIVE_APP === "true") return;
     setIsSubmittingGoogle(true);
     setMessage("");
 
@@ -224,17 +208,12 @@ export default function SignupPage() {
   const isSignup = mode === "signup";
 
   return (
-    <main className="min-h-screen bg-white px-5 py-8">
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col">
-        <header className="pt-8">
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary/45"
-          >
-            LOODI
-          </button>
-          <h1 className="mt-8 text-[28px] font-bold leading-tight tracking-normal text-primary">
+    <main className="min-h-dvh bg-background px-5 pb-8 pt-4">
+      <div className="mx-auto flex w-full max-w-md flex-col">
+        <header>
+          <BackLink href="/" />
+
+          <h1 className="mt-4 text-[28px] font-bold leading-tight tracking-normal text-primary">
             {isSignup ? "계정 만들기" : "로그인"}
           </h1>
           <p className="mt-2 text-sm text-primary/55">
@@ -244,7 +223,7 @@ export default function SignupPage() {
           </p>
         </header>
 
-        <section className="mt-10 flex rounded-lg bg-[#f4f4f5] p-1">
+        <section className="mt-6 flex rounded-xl bg-[#f4f4f5] p-1">
           {[
             { value: "signup", label: "회원가입" },
             { value: "login", label: "로그인" },
@@ -265,14 +244,15 @@ export default function SignupPage() {
           ))}
         </section>
 
-        <section className="mt-7 space-y-3">
+        <section className="mt-6 space-y-4">
           {mode === "login" ? (
             <>
               <button
                 type="button"
+                style={process.env.NEXT_PUBLIC_NATIVE_APP === "true" ? { display: "none" } : undefined}
                 onClick={handleGoogleLogin}
                 disabled={isSubmittingGoogle}
-                className="flex h-13 w-full items-center justify-between rounded-lg border border-[#d7dce5] bg-white px-4 text-sm font-semibold text-primary transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-[52px] w-full items-center justify-between rounded-lg border border-[#d7dce5] bg-white px-4 text-sm font-semibold text-primary transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <span>
                   {isSubmittingGoogle ? "Google로 이동 중..." : "Google로 계속하기"}
@@ -292,7 +272,7 @@ export default function SignupPage() {
           <label className="block space-y-2">
             <span className="text-xs font-semibold text-primary/70">아이디</span>
             <input
-              className="h-13 w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-[15px] text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
+              className="h-[52px] w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-base text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
               placeholder="아이디 입력"
               type="text"
               autoComplete="username"
@@ -306,7 +286,7 @@ export default function SignupPage() {
               비밀번호
             </span>
             <input
-              className="h-13 w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-[15px] text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
+              className="h-[52px] w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-base text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
               placeholder="비밀번호 입력"
               type="password"
               autoComplete={isSignup ? "new-password" : "current-password"}
@@ -321,7 +301,7 @@ export default function SignupPage() {
                 비밀번호 확인
               </span>
               <input
-                className="h-13 w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-[15px] text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
+                className="h-[52px] w-full rounded-lg border border-[#d7dce5] bg-white px-4 text-base text-primary outline-none transition placeholder:text-primary/28 focus:border-primary"
                 placeholder="비밀번호 다시 입력"
                 type="password"
                 autoComplete="new-password"
@@ -355,9 +335,9 @@ export default function SignupPage() {
           ) : null}
         </section>
 
-        <div className="mt-auto space-y-3 pb-2 pt-8">
+        <div className="space-y-2 pb-2 pt-6">
           <Button
-            className="h-13 w-full rounded-lg bg-primary text-base font-bold text-white hover:bg-primary/90"
+            className="h-[52px] w-full rounded-lg bg-primary text-base font-bold text-white hover:bg-primary/90"
             onClick={isSignup ? handleSignup : handleLogin}
             disabled={submitting}
           >

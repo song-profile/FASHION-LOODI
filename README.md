@@ -221,3 +221,14 @@ npm run dev
 ```txt
 http://127.0.0.1:3000
 ```
+
+## iOS App
+
+Capacitor 기반 iOS 프로젝트를 `ios/`에 추가했습니다. 화면은 앱에 포함하고 Next.js API는 HTTPS 서버에서 실행합니다.
+
+```bash
+npm run ios:sync
+npm run ios:open
+```
+
+환경변수, Xcode 요구사항, 실제 기기 검증 및 출시 전 남은 항목은 [iOS 출시 가이드](docs/ios-release.md)를 참고하세요.

@@ -1,7 +1,11 @@
 "use client";
+import { ScreenHeader } from "@/components/layout/screen-header";
+import { useDialog } from "@/hooks/use-dialog";
 
-import { BookOpen, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Search, Pencil, Trash2, X } from "lucide-react";
 import Image from "next/image";
+import { createPortal } from 'react-dom';
+import { LinkButton } from '@/components/ui/link-button';
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,10 +19,9 @@ import {
   updateDiaryEntry,
   type DiaryEntry,
 } from "@/lib/outfit-diary";
-import { recentOutfits } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const moodIconMap: Record<string, string> = {
   보통: "🙂",
   멋짐: "😎",
@@ -37,6 +40,7 @@ function endOfMonth(date: Date) {
 }
 
 function isSameDay(a: Date, b: Date) {
+
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -60,9 +64,19 @@ export default function TimelinePage() {
   const [draftTags, setDraftTags] = useState("");
   const [draftNote, setDraftNote] = useState("");
   const [draftMemo, setDraftMemo] = useState("");
+  const [actionError, setActionError] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [justSaved, setJustSaved] = useState(false);
 
   useEffect(() => {
+    const params = new URL(window.location.href).searchParams;
+    const date = params.get('date') || params.get('focus');
+    setJustSaved(params.get('saved') === '1');
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const selected = new Date(`${date}T12:00:00`);
+      if (!Number.isNaN(selected.getTime()) && formatDateKey(selected) === date) { setSelectedDate(selected); setCurrentMonth(startOfMonth(selected)); setIsDetailOpen(Boolean(params.get('date'))); }
+    }
     setEntries(readDiaryEntries());
   }, []);
 
@@ -91,28 +105,38 @@ export default function TimelinePage() {
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
-    updateDiaryEntry(editingId, {
+    const updated = updateDiaryEntry(editingId, {
       title: draftTitle.trim() || undefined,
       tags,
       styleNote: draftNote.trim() || undefined,
       memo: draftMemo.trim() || undefined,
     });
+    if (!updated) { setActionError("변경사항을 저장하지 못했어요. 저장 공간을 확인하고 다시 시도해 주세요."); return; }
+    setActionError("");
     refreshEntries();
     cancelEdit();
   };
 
   const handleDelete = (id: string) => {
-    deleteDiaryEntry(id);
+    if (!deleteDiaryEntry(id)) { setActionError("기록을 삭제하지 못했어요. 다시 시도해 주세요."); return; }
+    setActionError("");
     refreshEntries();
     if (editingId === id) cancelEdit();
     setConfirmDeleteId(null);
   };
 
   const closeDetailModal = () => {
+    if (editingId && !window.confirm("수정 중인 내용이 있어요. 저장하지 않고 닫을까요?")) return;
     setIsDetailOpen(false);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('date');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
+    setActionError("");
     cancelEdit();
     setConfirmDeleteId(null);
   };
+
+  const dialogRef = useDialog(isDetailOpen, closeDetailModal);
 
   const entriesByDate = useMemo(() => {
     const map = new Map<string, DiaryEntry[]>();
@@ -147,52 +171,43 @@ export default function TimelinePage() {
 
   const yearOptions = useMemo(() => {
     const now = new Date().getFullYear();
-    return Array.from({ length: 11 }).map((_, idx) => now - 5 + idx);
-  }, []);
+    return [...new Set([...Array.from({ length: 11 }, (_, idx) => now - 5 + idx), currentMonth.getFullYear(), ...entries.map(entry => Number(entry.date.slice(0, 4)))])].sort((a, b) => a - b);
+  }, [currentMonth, entries]);
 
   const selectedEntries = selectedDate
     ? entriesByDate.get(formatDateKey(selectedDate)) ?? []
     : [];
+  const visibleEntries = entries.filter(entry => [entry.title, entry.memo, entry.styleNote, entry.date, ...entry.tags, ...(entry.items || []).map(item => item.name)].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
+  const moveMonth = (offset: number) => setCurrentMonth(current => new Date(current.getFullYear(), current.getMonth() + offset, 1));
 
   return (
     <div className="relative space-y-5">
-      <section className="diary-surface rounded-lg border border-border px-4 py-4 shadow-soft">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <span className="diary-label">LOODI DIARY</span>
-            <h1 className="mt-3 text-2xl font-semibold text-primary">Timeline</h1>
-            <p className="mt-1 text-sm text-primary/60">
-              오늘의 옷, 날씨, 기분을 한 페이지에 모아봐요.
-            </p>
-          </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card text-accent shadow-soft">
-            <BookOpen size={22} />
-          </div>
-        </div>
+      <section className="space-y-3">
+        <ScreenHeader eyebrow="THE PERSONAL ARCHIVE" title="나의 기록" description="지나간 하루의 옷차림을 다시 만나요." action={<span className="rounded-full border border-border bg-card px-3 py-1.5 text-[10px] text-muted-foreground">{entries.length} LOOKS</span>} />
       </section>
+      {justSaved ? <p role="status" className="rounded-xl bg-highlight/10 px-4 py-3 text-xs text-highlight">오늘의 룩을 저장했어요. 기록에서 다시 꺼내보세요.</p> : null}
 
-      <Card className="diary-surface">
-        <CardContent className="space-y-3 pt-5">
+      <div>
           <SimpleTabs
             tabs={[
-              { value: "calendar", label: "Calendar View" },
-              { value: "grid", label: "Grid View" },
+              { value: "calendar", label: "달력" },
+              { value: "grid", label: "모아보기" },
             ]}
             defaultValue="calendar"
             onChange={setView}
           />
-        </CardContent>
-      </Card>
+      </div>
+      {view === 'grid' ? <label className="relative block"><Search size={16} className="absolute left-4 top-3.5 text-muted-foreground" /><Input aria-label="기록 검색" className="pl-11" placeholder="제목, 태그, 아이템으로 찾아보기" value={query} onChange={event => setQuery(event.target.value)} /></label> : null}
 
       <Card className={cn("diary-surface", view === "calendar" ? "overflow-hidden" : undefined)}>
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/40">
-                Outfit Calendar
+                {view === 'calendar' ? 'MONTHLY LOOKS' : 'COLLECTED MOMENTS'}
               </p>
               <CardTitle className="mt-1 text-xl">
-                {new Intl.DateTimeFormat("en-US", {
+                {view === 'grid' ? `나만의 룩북 · ${visibleEntries.length}` : new Intl.DateTimeFormat("ko-KR", {
                   month: "long",
                   year: "numeric",
                 }).format(currentMonth)}
@@ -201,7 +216,7 @@ export default function TimelinePage() {
             {view === "calendar" ? (
               <div className="flex items-center gap-2">
                 <select
-                  aria-label="Select year"
+                  aria-label="연도 선택"
                   value={currentMonth.getFullYear()}
                   onChange={(e) =>
                     setCurrentMonth(
@@ -222,7 +237,7 @@ export default function TimelinePage() {
                 </select>
 
                 <select
-                  aria-label="Select month"
+                  aria-label="월 선택"
                   value={currentMonth.getMonth()}
                   onChange={(e) =>
                     setCurrentMonth(
@@ -237,7 +252,7 @@ export default function TimelinePage() {
                 >
                   {Array.from({ length: 12 }).map((_, i) => (
                     <option key={i} value={i}>
-                      {new Intl.DateTimeFormat("en-US", { month: "short" }).format(
+                      {new Intl.DateTimeFormat("ko-KR", { month: "short" }).format(
                         new Date(2026, i, 1),
                       )}
                     </option>
@@ -250,6 +265,7 @@ export default function TimelinePage() {
         <CardContent>
           {view === "calendar" ? (
             <div className="space-y-3">
+              <div className="flex items-center justify-between"><button type="button" aria-label="이전 달" onClick={() => moveMonth(-1)} className="flex h-11 w-11 items-center justify-center rounded-full border border-border"><ArrowLeft size={17} /></button><button type="button" onClick={() => { const today = new Date(); setCurrentMonth(startOfMonth(today)); setSelectedDate(today); }} className="min-h-11 px-4 text-xs text-accent">오늘로</button><button type="button" aria-label="다음 달" onClick={() => moveMonth(1)} className="flex h-11 w-11 items-center justify-center rounded-full border border-border"><ArrowRight size={17} /></button></div>
               <div className="grid grid-cols-7 gap-1 rounded-lg border border-border bg-card/75 px-2 py-2 text-center text-[10px] font-semibold uppercase text-primary/45">
                 {WEEKDAYS.map((label) => (
                   <div key={label}>{label}</div>
@@ -267,12 +283,14 @@ export default function TimelinePage() {
                     <button
                       key={date.toISOString()}
                       type="button"
+                      aria-label={`${formatDateKey(date)}${hasEntry ? `, ${dayEntries.length}개의 기록` : ', 기록 없음'}`}
+                      aria-pressed={isSelected}
                       onClick={() => {
                         setSelectedDate(date);
                         setIsDetailOpen(true);
                       }}
                       className={cn(
-                        "relative flex h-11 flex-col items-center justify-center rounded-lg border text-sm font-medium transition",
+                        "relative flex min-h-12 aspect-[3/4] flex-col items-center justify-center overflow-hidden rounded-lg border text-xs font-medium transition-colors",
                         isCurrentMonth
                           ? "border-border bg-card/90 text-primary shadow-[0_4px_12px_rgba(27,42,74,0.04)] hover:border-accent/50"
                           : "border-transparent bg-soft/45 text-primary/30",
@@ -282,7 +300,8 @@ export default function TimelinePage() {
                           "border-primary bg-primary text-white shadow-[0_10px_20px_rgba(27,42,74,0.18)]",
                       )}
                     >
-                      <span>{date.getDate()}</span>
+                      {hasEntry && dayEntries[0].photos[0] ? <><Image src={diaryPhotoToDataUrl(dayEntries[0].photos[0])} alt="" fill unoptimized className="object-cover" /><span className="absolute inset-0 bg-black/25" /></> : null}
+                      <span className={cn('relative z-[1]', hasEntry && dayEntries[0].photos[0] && 'font-semibold text-white')}>{date.getDate()}</span>
                       {hasEntry && dayEntries.length > 1 ? (
                         <span
                           className={cn(
@@ -312,8 +331,7 @@ export default function TimelinePage() {
 
               {selectedDate ? (
                 <p className="rounded-2xl bg-soft px-3 py-2 text-xs font-medium text-primary/65">
-                  Selected:{" "}
-                  {new Intl.DateTimeFormat("en-US", {
+                  {new Intl.DateTimeFormat("ko-KR", {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
@@ -322,9 +340,9 @@ export default function TimelinePage() {
                 </p>
               ) : null}
             </div>
-          ) : entries.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2">
-              {entries.map((entry) => {
+          ) : visibleEntries.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3">
+              {visibleEntries.map((entry) => {
                 const cover = entry.photos[0];
                 return (
                   <button
@@ -335,7 +353,7 @@ export default function TimelinePage() {
                       setSelectedDate(new Date(y, m - 1, d));
                       setIsDetailOpen(true);
                     }}
-                    className="relative h-28 overflow-hidden rounded-lg border border-card bg-card shadow-soft"
+                    className="lookbook-card"
                   >
                     {cover ? (
                       <Image
@@ -348,8 +366,9 @@ export default function TimelinePage() {
                     ) : (
                       <div className="h-full w-full bg-soft" />
                     )}
-                    <span className="absolute bottom-1 left-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] text-white">
-                      {entry.date.slice(5)}
+                    <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3 pt-8 text-left text-white"><span className="block text-xs font-medium">{entry.title || '오늘의 룩'}</span><span className="mt-1 block text-[10px] text-white/80">
+                      {entry.date.slice(5).replace('-', '.')}
+                      </span>
                     </span>
                   </button>
                 );
@@ -358,32 +377,30 @@ export default function TimelinePage() {
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-primary/55">
-                아직 저장된 룩이 없어요. Record 탭에서 첫 룩을 기록해 보세요.
+                {query ? '검색한 기록이 없어요. 다른 단어로 찾아보세요.' : '아직 저장된 룩이 없어요. 첫 번째 페이지를 채워볼까요?'}
               </p>
-              <div className="grid grid-cols-3 gap-2 opacity-60">
-                {recentOutfits.slice(0, 3).map((src) => (
-                  <div key={src} className="relative h-28 overflow-hidden rounded-xl">
-                    <Image src={src} alt="sample" fill className="object-cover" />
-                  </div>
-                ))}
-              </div>
+              {query ? <button type="button" className="min-h-11 text-sm text-accent" onClick={() => setQuery('')}>검색 초기화</button> : <LinkButton href="/record" className="gap-2"><Plus size={16} />첫 룩 기록하기</LinkButton>}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {isDetailOpen && selectedDate ? (
+      {isDetailOpen && selectedDate ? createPortal(
         <>
           <button
             type="button"
-            aria-label="Close detail modal"
+            aria-label="상세 배경 닫기"
             className="fixed inset-0 z-40 bg-black/30"
             onClick={closeDetailModal}
           />
-          <div className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl">
-            <h3 className="text-lg font-semibold text-primary">Outfit Detail</h3>
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="착장 상세" tabIndex={-1} className="sheet-enter fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[85dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl bg-white px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl">
+            <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 flex items-center justify-between border-b border-border bg-card px-5 py-3">
+              <h3 className="text-lg font-semibold text-primary">착장 상세</h3>
+              <button type="button" aria-label="착장 상세 닫기" onClick={closeDetailModal} className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground"><X size={20} /></button>
+            </div>
+            {actionError ? <p role="alert" className="mt-3 text-sm text-destructive">{actionError}</p> : null}
             <p className="mt-1 text-sm text-primary/65">
-              {new Intl.DateTimeFormat("en-US", {
+              {new Intl.DateTimeFormat("ko-KR", {
                 year: "numeric",
                 month: "long",
                 day: "numeric",
@@ -404,7 +421,7 @@ export default function TimelinePage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="space-y-1">
                           <p className="text-base font-semibold text-primary">
-                            {entry.title || "Untitled Outfit"}
+                            {entry.title || "오늘의 룩"}
                           </p>
                           <p className="text-[11px] uppercase tracking-[0.18em] text-primary/45">
                             {new Intl.DateTimeFormat("en-US", {
@@ -418,19 +435,19 @@ export default function TimelinePage() {
                           <div className="flex gap-1">
                             <button
                               type="button"
-                              aria-label="Edit entry"
+                              aria-label="기록 수정"
                               onClick={() => startEdit(entry)}
-                              className="rounded-lg p-1.5 text-primary/65 hover:bg-soft"
+                              className="flex h-11 w-11 items-center justify-center rounded-lg text-primary/65 hover:bg-soft"
                             >
-                              <Pencil size={14} />
+                              <Pencil size={18} />
                             </button>
                             <button
                               type="button"
-                              aria-label="Delete entry"
+                              aria-label="기록 삭제"
                               onClick={() => setConfirmDeleteId(entry.id)}
-                              className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
+                              className="flex h-11 w-11 items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={18} />
                             </button>
                           </div>
                         ) : null}
@@ -460,18 +477,18 @@ export default function TimelinePage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className={cn('grid gap-2', entry.photos.length > 1 && 'grid-cols-2')}>
                         {entry.photos.slice(0, 4).map((photo, idx) => (
                           <div
                             key={`${entry.id}-${idx}`}
-                            className="relative h-24 overflow-hidden rounded-xl border border-border"
+                            className="relative aspect-[3/4] max-h-80 overflow-hidden rounded-xl border border-border bg-soft"
                           >
                             <Image
                               src={diaryPhotoToDataUrl(photo)}
                               alt={`outfit ${entry.date}`}
                               fill
                               unoptimized
-                              className="object-cover"
+                              className="object-contain"
                             />
                           </div>
                         ))}
@@ -486,14 +503,14 @@ export default function TimelinePage() {
                             <button
                               type="button"
                               onClick={() => handleDelete(entry.id)}
-                              className="flex-1 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white"
+                              className="min-h-11 flex-1 rounded-lg bg-rose-600 px-3 py-2 text-xs font-medium text-white"
                             >
                               삭제
                             </button>
                             <button
                               type="button"
                               onClick={() => setConfirmDeleteId(null)}
-                              className="flex-1 rounded-lg border border-rose-200 px-3 py-1.5 text-xs text-rose-700"
+                              className="min-h-11 flex-1 rounded-lg border border-rose-200 px-3 py-2 text-xs text-rose-700"
                             >
                               취소
                             </button>
@@ -506,9 +523,11 @@ export default function TimelinePage() {
                               Title
                             </label>
                             <Input
+                              aria-label="기록 제목"
+                              maxLength={100}
                               value={draftTitle}
                               onChange={(e) => setDraftTitle(e.target.value)}
-                              placeholder="Quick note title"
+                              placeholder="오늘의 룩 제목"
                             />
                           </div>
                           <div>
@@ -516,6 +535,8 @@ export default function TimelinePage() {
                               Tags (comma-separated)
                             </label>
                             <Input
+                              aria-label="기록 태그"
+                              maxLength={500}
                               value={draftTags}
                               onChange={(e) => setDraftTags(e.target.value)}
                               placeholder="e.g. 가을, 캐주얼, 차분한"
@@ -527,6 +548,8 @@ export default function TimelinePage() {
                             </label>
                             <Textarea
                               rows={3}
+                              aria-label="분석 메모"
+                              maxLength={10000}
                               value={draftNote}
                               onChange={(e) => setDraftNote(e.target.value)}
                               placeholder="AI 분석 내용 또는 직접 작성"
@@ -538,6 +561,8 @@ export default function TimelinePage() {
                             </label>
                             <Textarea
                               rows={2}
+                              aria-label="개인 메모"
+                              maxLength={2000}
                               value={draftMemo}
                               onChange={(e) => setDraftMemo(e.target.value)}
                               placeholder="개인 메모"
@@ -547,14 +572,14 @@ export default function TimelinePage() {
                             <button
                               type="button"
                               onClick={saveEdit}
-                              className="flex-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white"
+                              className="min-h-11 flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-white"
                             >
                               저장
                             </button>
                             <button
                               type="button"
                               onClick={cancelEdit}
-                              className="flex-1 rounded-lg border border-border px-3 py-1.5 text-xs text-primary/75"
+                              className="min-h-11 flex-1 rounded-lg border border-border px-3 py-2 text-xs text-primary/75"
                             >
                               취소
                             </button>
@@ -595,19 +620,19 @@ export default function TimelinePage() {
               </div>
             ) : (
               <p className="mt-4 rounded-lg border border-dashed border-border bg-soft/70 p-4 text-sm text-primary/55">
-                이 날에는 기록이 없어요.
+                이 날에는 기록이 없어요.{formatDateKey(selectedDate) <= formatDateKey(new Date()) ? <LinkButton href={`/record?date=${formatDateKey(selectedDate)}`} variant="outline" className="mt-3 w-full">이 날짜에 룩 기록하기</LinkButton> : null}
               </p>
             )}
 
             <button
               type="button"
               onClick={closeDetailModal}
-              className="mt-5 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white"
+              className="mt-5 min-h-12 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white"
             >
-              Close
+              닫기
             </button>
           </div>
-        </>
+        </>, document.body
       ) : null}
     </div>
   );
